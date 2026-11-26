@@ -262,16 +262,20 @@ class LandingScreen extends ConsumerWidget {
                                 ),
                               ];
                               if (wide) {
-                                return Row(
-                                  children: cards
-                                      .map((c) => Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(
-                                                  right: 14),
-                                              child: c,
-                                            ),
-                                          ))
-                                      .toList(),
+                                return IntrinsicHeight(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: cards
+                                        .map((c) => Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    right: 14),
+                                                child: c,
+                                              ),
+                                            ))
+                                        .toList(),
+                                  ),
                                 );
                               }
                               return Column(

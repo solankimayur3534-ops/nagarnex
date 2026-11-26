@@ -478,9 +478,17 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                     OutlinedButton.icon(
                                       onPressed: () =>
                                           _pickPhoto(ImageSource.gallery),
+                                      style: OutlinedButton.styleFrom(
+                                        backgroundColor: AppColors.surface,
+                                        foregroundColor: AppColors.ink,
+                                        side: const BorderSide(
+                                            color: AppColors.border),
+                                      ),
                                       icon: const Icon(Icons.upload_rounded,
                                           size: 18),
-                                      label: const Text('Upload Photo'),
+                                      label: const Text('Upload Photo',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600)),
                                     )
                                   else
                                     const Chip(

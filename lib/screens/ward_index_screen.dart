@@ -117,8 +117,9 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                       ),
                     ],
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
                     children: [
                       OutlinedButton.icon(
                         onPressed: () {
@@ -130,6 +131,7 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                           );
                         },
                         style: OutlinedButton.styleFrom(
+                          backgroundColor: AppColors.surface,
                           foregroundColor: AppColors.ink,
                           side: const BorderSide(color: AppColors.border),
                           shape: RoundedRectangleBorder(
@@ -139,7 +141,6 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                         icon: const Icon(Icons.share_outlined, size: 16),
                         label: const Text('Share Ward Card'),
                       ),
-                      const SizedBox(height: 8),
                       FilledButton.icon(
                         onPressed: () {
                           final csv = _buildCsv(allStats);
@@ -208,15 +209,18 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                     ),
                   ];
                   if (wide) {
-                    return Row(
-                      children: kpis
-                          .map((c) => Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: c,
-                                ),
-                              ))
-                          .toList(),
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: kpis
+                            .map((c) => Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: c,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
                     );
                   }
                   return Column(

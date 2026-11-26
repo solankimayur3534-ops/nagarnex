@@ -77,10 +77,27 @@ class NagarNexApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.background,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.emerald,
-          primary: AppColors.emerald,
+          seedColor: AppColors.forest,
+          primary: AppColors.forest,
+          secondary: AppColors.emerald,
           surface: AppColors.surface,
           onSurface: AppColors.ink,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.forest, width: 1.6),
+          ),
         ),
       ),
     );

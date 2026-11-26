@@ -1060,7 +1060,7 @@ class _MobileSpotDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${report.wardName} • ${report.reportCount} Reports Merged',
+            '${report.wardName} • ${report.reportCount} ${report.reportCount == 1 ? "Report" : "Reports"} Merged',
             style: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
           ),
           const SizedBox(height: 12),

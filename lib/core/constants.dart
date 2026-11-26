@@ -2,27 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 class AppColors {
-  static const Color background = Color(0xFFF8FAFC);
+  static const Color background = Color(0xFFF4F7F5);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF1F5F9);
-  static const Color ink = Color(0xFF0F172A);
-  static const Color inkSecondary = Color(0xFF475569);
-  static const Color inkMuted = Color(0xFF64748B);
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color surfaceMuted = Color(0xFFEDF2EF);
+  static const Color ink = Color(0xFF0B1F17);
+  static const Color inkSecondary = Color(0xFF374151);
+  static const Color inkMuted = Color(0xFF6B7280);
+  static const Color border = Color(0xFFDCE5DF);
 
   static const Color forest = Color(0xFF064E3B);
   static const Color emerald = Color(0xFF10B981);
   static const Color emeraldDark = Color(0xFF047857);
-  static const Color emeraldMint = Color(0xFF6EE7B7);
+  static const Color emeraldMint = Color(0xFFA7F3D0);
   static const Color emeraldSoft = Color(0xFFECFDF5);
 
-  static const Color danger = Color(0xFFB91C1C);
+  static const Color danger = Color(0xFFDC2626);
   static const Color dangerBright = Color(0xFFEF4444);
   static const Color dangerSoft = Color(0xFFFEF2F2);
   static const Color warning = Color(0xFFD97706);
   static const Color warningSoft = Color(0xFFFFFBEB);
-  static const Color info = Color(0xFF1D4ED8);
-  static const Color infoSoft = Color(0xFFDBEAFE);
+  static const Color info = Color(0xFF0284C7);
+  static const Color infoSoft = Color(0xFFE0F2FE);
 }
 
 class AppConstants {

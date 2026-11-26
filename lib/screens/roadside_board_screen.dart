@@ -333,6 +333,7 @@ class RoadsideBoardScreen extends ConsumerWidget {
             children: [
               // Top Kiosk Banner
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
