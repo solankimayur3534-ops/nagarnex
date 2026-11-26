@@ -20,6 +20,8 @@ class NagarNexState {
   final Map<String, Uint8List> localPhotoCache;
   final Set<String> myReportIds;
   final int unreadUpdates;
+  final bool enforceCameraOnly;
+  final bool enforceGpsOnly;
   final bool isLoading;
 
   const NagarNexState({
@@ -30,6 +32,8 @@ class NagarNexState {
     this.localPhotoCache = const {},
     this.myReportIds = const {},
     this.unreadUpdates = 0,
+    this.enforceCameraOnly = false,
+    this.enforceGpsOnly = false,
     this.isLoading = false,
   });
 
@@ -41,6 +45,8 @@ class NagarNexState {
     Map<String, Uint8List>? localPhotoCache,
     Set<String>? myReportIds,
     int? unreadUpdates,
+    bool? enforceCameraOnly,
+    bool? enforceGpsOnly,
     bool? isLoading,
   }) {
     return NagarNexState(
@@ -51,6 +57,8 @@ class NagarNexState {
       localPhotoCache: localPhotoCache ?? this.localPhotoCache,
       myReportIds: myReportIds ?? this.myReportIds,
       unreadUpdates: unreadUpdates ?? this.unreadUpdates,
+      enforceCameraOnly: enforceCameraOnly ?? this.enforceCameraOnly,
+      enforceGpsOnly: enforceGpsOnly ?? this.enforceGpsOnly,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -107,16 +115,36 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       if (remote != null) profile = remote;
     } catch (_) {}
 
+    final settings = await SupabaseService.fetchAppSettings();
+
     state = state.copyWith(
       reports: reports,
       centers: centers,
       drives: drives,
       profile: profile,
       myReportIds: trackedIds,
+      enforceCameraOnly: settings.enforceCameraOnly,
+      enforceGpsOnly: settings.enforceGpsOnly,
       isLoading: false,
     );
 
     _subscribeRealtimeUpdates();
+  }
+
+  Future<void> setAdminEnforcement({
+    bool? enforceCameraOnly,
+    bool? enforceGpsOnly,
+  }) async {
+    final cam = enforceCameraOnly ?? state.enforceCameraOnly;
+    final gps = enforceGpsOnly ?? state.enforceGpsOnly;
+    state = state.copyWith(
+      enforceCameraOnly: cam,
+      enforceGpsOnly: gps,
+    );
+    await SupabaseService.updateAppSettings(
+      enforceCameraOnly: cam,
+      enforceGpsOnly: gps,
+    );
   }
 
   void _subscribeRealtimeUpdates() {

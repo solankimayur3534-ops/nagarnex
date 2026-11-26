@@ -252,6 +252,10 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final appState = ref.watch(nagarNexProvider);
+    final enforceCameraOnly = appState.enforceCameraOnly;
+    final enforceGpsOnly = appState.enforceGpsOnly;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Center(
@@ -470,13 +474,19 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                         size: 18),
                                     label: const Text('Click Photo (Camera)'),
                                   ),
-                                  OutlinedButton.icon(
-                                    onPressed: () =>
-                                        _pickPhoto(ImageSource.gallery),
-                                    icon: const Icon(Icons.upload_rounded,
-                                        size: 18),
-                                    label: const Text('Upload Photo'),
-                                  ),
+                                  if (!enforceCameraOnly)
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _pickPhoto(ImageSource.gallery),
+                                      icon: const Icon(Icons.upload_rounded,
+                                          size: 18),
+                                      label: const Text('Upload Photo'),
+                                    )
+                                  else
+                                    const Chip(
+                                      label: Text('Camera-Only Enforced',
+                                          style: TextStyle(fontSize: 11)),
+                                    ),
                                 ],
                               ),
                             ],
@@ -628,30 +638,41 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: List.generate(
-                    AppConstants.bengaluruPresets.length,
-                    (i) {
-                      final p = AppConstants.bengaluruPresets[i];
-                      final active = _presetIndex == i;
-                      final shortWard =
-                          p['ward'].toString().split(' ').skip(2).join(' ');
-                      return ChoiceChip(
-                        label: Text(shortWard),
-                        selected: active,
-                        selectedColor: AppColors.forest,
-                        labelStyle: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: active ? Colors.white : AppColors.inkSecondary,
-                        ),
-                        onSelected: (_) => _selectPreset(i),
-                      );
-                    },
+                if (!enforceGpsOnly)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: List.generate(
+                      AppConstants.bengaluruPresets.length,
+                      (i) {
+                        final p = AppConstants.bengaluruPresets[i];
+                        final active = _presetIndex == i;
+                        final shortWard =
+                            p['ward'].toString().split(' ').skip(2).join(' ');
+                        return ChoiceChip(
+                          label: Text(shortWard),
+                          selected: active,
+                          selectedColor: AppColors.forest,
+                          labelStyle: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: active
+                                ? Colors.white
+                                : AppColors.inkSecondary,
+                          ),
+                          onSelected: (_) => _selectPreset(i),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  const Text(
+                    'Live GPS Enforcement active — tap "1-Click Detect GPS" above.',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.emeraldDark),
                   ),
-                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _placeController,

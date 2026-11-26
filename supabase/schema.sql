@@ -85,6 +85,18 @@ values
   ('ITPL Gate 2 E-Waste & Litter Sort', 'Ward 84 Whitefield', 'ITPL Main Gate 2 Footpath', now() + interval '1 day 2 hours', 9, true),
   ('Bellandur Lake Buffer Edge Sweep', 'Ward 150 Bellandur', 'Bellandur Lake Service Rd North', now() + interval '2 days', 22, true);
 
+-- 5. Administrator Enforcement Settings (1-click true/false toggles)
+create table if not exists app_settings (
+  id int primary key default 1,
+  enforce_camera_only boolean default false,
+  enforce_gps_only boolean default false,
+  updated_at timestamptz default now()
+);
+
+insert into app_settings (id, enforce_camera_only, enforce_gps_only)
+values (1, false, false)
+on conflict (id) do nothing;
+
 -- Create public storage bucket for Before/After photos
 insert into storage.buckets (id, name, public)
 values ('waste-photos', 'waste-photos', true)

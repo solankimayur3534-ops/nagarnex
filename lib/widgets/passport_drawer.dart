@@ -86,7 +86,8 @@ class PassportDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(nagarNexProvider).profile;
+    final appState = ref.watch(nagarNexProvider);
+    final profile = appState.profile;
 
     return Drawer(
       backgroundColor: AppColors.background,
@@ -229,6 +230,50 @@ class PassportDrawer extends ConsumerWidget {
                 label: 'Consensus Proof Votes',
                 value: '${profile.consensusVotes}',
                 color: AppColors.warning,
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Admin Policy Controls (Supabase)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkSecondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Enforce Camera Only',
+                          style: TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      value: appState.enforceCameraOnly,
+                      activeThumbColor: AppColors.forest,
+                      onChanged: (v) => ref
+                          .read(nagarNexProvider.notifier)
+                          .setAdminEnforcement(enforceCameraOnly: v),
+                    ),
+                    const Divider(height: 1, color: AppColors.border),
+                    SwitchListTile(
+                      dense: true,
+                      title: const Text('Enforce Live GPS Only',
+                          style: TextStyle(
+                              fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      value: appState.enforceGpsOnly,
+                      activeThumbColor: AppColors.forest,
+                      onChanged: (v) => ref
+                          .read(nagarNexProvider.notifier)
+                          .setAdminEnforcement(enforceGpsOnly: v),
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
               Container(

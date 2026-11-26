@@ -213,6 +213,44 @@ class SupabaseService {
     } catch (_) {}
   }
 
+  static Future<({bool enforceCameraOnly, bool enforceGpsOnly})>
+      fetchAppSettings() async {
+    final client = _client;
+    if (client == null) {
+      return (enforceCameraOnly: false, enforceGpsOnly: false);
+    }
+    try {
+      final row = await client
+          .from('app_settings')
+          .select()
+          .eq('id', 1)
+          .maybeSingle();
+      if (row != null) {
+        return (
+          enforceCameraOnly: row['enforce_camera_only'] as bool? ?? false,
+          enforceGpsOnly: row['enforce_gps_only'] as bool? ?? false,
+        );
+      }
+    } catch (_) {}
+    return (enforceCameraOnly: false, enforceGpsOnly: false);
+  }
+
+  static Future<void> updateAppSettings({
+    required bool enforceCameraOnly,
+    required bool enforceGpsOnly,
+  }) async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.from('app_settings').upsert({
+        'id': 1,
+        'enforce_camera_only': enforceCameraOnly,
+        'enforce_gps_only': enforceGpsOnly,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      });
+    } catch (_) {}
+  }
+
   static List<WardStats> computeWardStats(List<WasteReport> reports) {
     final Map<String, List<WasteReport>> byWard = {};
     for (final r in reports) {
