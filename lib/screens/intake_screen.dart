@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import '../core/constants.dart';
+import '../core/geo_utils.dart';
 import '../services/ai_vision_service.dart';
 import '../services/app_state.dart';
 
@@ -66,6 +68,21 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
         _exifStripped = true;
         _aiResult = null;
         _privacyBlurred = false;
+        _isAnalyzing = true;
+      });
+
+      // Automatically classify the first photo and pre-fill parameters
+      final res = await AiVisionService.classifyWasteImage(
+        imageBytes: stripped,
+        hintPlace: _placeController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _aiResult = res;
+        _selectedWasteType = res.wasteType;
+        _selectedSeverity = res.severity;
+        _privacyBlurred = !res.containsFacesOrPlates;
+        _isAnalyzing = false;
       });
     } catch (e) {
       if (!mounted) return;
@@ -118,6 +135,17 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     });
   }
 
+  void _selectPreset(int i) {
+    final p = AppConstants.bengaluruPresets[i];
+    setState(() {
+      _presetIndex = i;
+      _wardName = p['ward'].toString();
+      _placeController.text = p['place'].toString();
+      _lat = (p['lat'] as num).toDouble();
+      _lng = (p['lng'] as num).toDouble();
+    });
+  }
+
   Future<void> _captureGps() async {
     try {
       final permission = await Geolocator.requestPermission();
@@ -127,23 +155,47 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Browser GPS denied — using selected Bengaluru preset coordinates.'),
+                'Browser GPS denied — tap any 1-click Bengaluru ward chip below.'),
           ),
         );
         return;
       }
       final pos = await Geolocator.getCurrentPosition();
+      final userPoint = LatLng(pos.latitude, pos.longitude);
+      // Find nearest Bengaluru ward automatically
+      int nearestIdx = 0;
+      double minDist = double.infinity;
+      for (int i = 0; i < AppConstants.bengaluruPresets.length; i++) {
+        final p = AppConstants.bengaluruPresets[i];
+        final d = GeoUtils.distanceMeters(
+          userPoint,
+          LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
+        );
+        if (d < minDist) {
+          minDist = d;
+          nearestIdx = i;
+        }
+      }
       if (!mounted) return;
       setState(() {
+        _presetIndex = nearestIdx;
+        _wardName =
+            AppConstants.bengaluruPresets[nearestIdx]['ward'].toString();
         _lat = pos.latitude;
         _lng = pos.longitude;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.forest,
+          content: Text('Location locked: $_wardName (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})'),
+        ),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content:
-              Text('Using Bengaluru fallback coordinates for desktop browser.'),
+              Text('Using selected Bengaluru ward coordinates for desktop.'),
         ),
       );
     }
@@ -547,63 +599,68 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 14),
-                DropdownButtonFormField<int>(
-                  initialValue: _presetIndex,
-                  decoration: const InputDecoration(
-                    labelText: 'Bengaluru Location / GPS Preset',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: List.generate(
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '1-Click Location Setup',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: _captureGps,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.emeraldSoft,
+                        foregroundColor: AppColors.forest,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      icon: const Icon(Icons.my_location_rounded, size: 16),
+                      label: const Text('1-Click Detect GPS',
+                          style: TextStyle(
+                              fontSize: 11.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: List.generate(
                     AppConstants.bengaluruPresets.length,
                     (i) {
                       final p = AppConstants.bengaluruPresets[i];
-                      return DropdownMenuItem(
-                        value: i,
-                        child: Text('${p['ward']} — ${p['place']}'),
+                      final active = _presetIndex == i;
+                      final shortWard =
+                          p['ward'].toString().split(' ').skip(2).join(' ');
+                      return ChoiceChip(
+                        label: Text(shortWard),
+                        selected: active,
+                        selectedColor: AppColors.forest,
+                        labelStyle: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: active ? Colors.white : AppColors.inkSecondary,
+                        ),
+                        onSelected: (_) => _selectPreset(i),
                       );
                     },
                   ),
-                  onChanged: (i) {
-                    if (i == null) return;
-                    final p = AppConstants.bengaluruPresets[i];
-                    setState(() {
-                      _presetIndex = i;
-                      _wardName = p['ward'].toString();
-                      _placeController.text = p['place'].toString();
-                      _lat = (p['lat'] as num).toDouble();
-                      _lng = (p['lng'] as num).toDouble();
-                    });
-                  },
                 ),
-
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _placeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Street / Landmark Name',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Street / Landmark ($_wardName)',
+                    suffixText:
+                        '${_lat.toStringAsFixed(3)}, ${_lng.toStringAsFixed(3)}',
+                    border: const OutlineInputBorder(),
                   ),
-                ),
-
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      'GPS: ${_lat.toStringAsFixed(4)}, ${_lng.toStringAsFixed(4)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkMuted,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton.icon(
-                      onPressed: _captureGps,
-                      icon: const Icon(Icons.my_location, size: 16),
-                      label: const Text('Use Browser GPS'),
-                    ),
-                  ],
                 ),
 
                 const SizedBox(height: 18),
