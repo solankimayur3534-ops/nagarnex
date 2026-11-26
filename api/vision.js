@@ -2,14 +2,43 @@
 // Keeps GEMINI_API_KEY / OPENROUTER_API_KEY 100% secure on the server.
 // Set GEMINI_API_KEY (or OPENROUTER_API_KEY) in Vercel Project -> Settings -> Environment Variables.
 
+// In-memory rate & daily quota guard to protect Gemini free-tier limits
+const RATE_WINDOW_MS = 60_000;
+const MAX_PER_MIN = 12;
+const MAX_PER_DAY = 200;
+const ipHits = new Map();
+let dayKey = new Date().toISOString().slice(0, 10);
+let dailyCount = 0;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== dayKey) {
+    dayKey = today;
+    dailyCount = 0;
+  }
+  if (dailyCount >= MAX_PER_DAY) {
+    return res.status(429).json({ error: 'Daily AI quota cap reached (saving free tier).' });
+  }
+
+  const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || 'local';
+  const now = Date.now();
+  const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= MAX_PER_MIN) {
+    return res.status(429).json({ error: 'Rate limit exceeded. Please wait a few seconds.' });
+  }
+  hits.push(now);
+  ipHits.set(ip, hits);
+
   const { mode = 'classify', imageBase64, beforeImageBase64 } = req.body || {};
   if (!imageBase64) {
     return res.status(400).json({ error: 'Missing imageBase64' });
+  }
+  if (imageBase64.length > 2_000_000) {
+    return res.status(413).json({ error: 'Image too large; compress below 1.5MB.' });
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -37,10 +66,15 @@ export default async function handler(req, res) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: geminiParts }],
-            generationConfig: { responseMimeType: 'application/json' },
+            generationConfig: {
+              responseMimeType: 'application/json',
+              maxOutputTokens: 160,
+              temperature: 0.1,
+            },
           }),
         }
       );
+      dailyCount += 1;
       const data = await r.json();
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return res.status(200).json(JSON.parse(text));

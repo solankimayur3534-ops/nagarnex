@@ -48,13 +48,15 @@ class AiVisionService {
   static String get runtimeOpenRouterKey =>
       const String.fromEnvironment('OPENROUTER_API_KEY');
 
+  static final Map<int, WasteClassificationResult> _classifyCache = {};
+
   /// Re-encodes image bytes through Flutter's image codec to strip all EXIF
-  /// metadata (GPS headers, camera model, timestamps) and resize to max 1024px.
+  /// metadata and resize to max 640px (cuts Vision AI image tokens by ~60%).
   static Future<Uint8List> stripExifAndCompress(Uint8List rawBytes) async {
     try {
       final codec = await ui.instantiateImageCodec(
         rawBytes,
-        targetWidth: 1024,
+        targetWidth: 640,
       );
       final frame = await codec.getNextFrame();
       final byteData =
@@ -76,6 +78,15 @@ class AiVisionService {
     required Uint8List imageBytes,
     String? hintPlace,
   }) async {
+    final cacheKey = Object.hashAll([
+      imageBytes.length,
+      imageBytes.isNotEmpty ? imageBytes.first : 0,
+      imageBytes.length > 10 ? imageBytes[10] : 0,
+      imageBytes.isNotEmpty ? imageBytes.last : 0,
+    ]);
+    final cached = _classifyCache[cacheKey];
+    if (cached != null) return cached;
+
     try {
       final proxyUri = Uri.parse(backendProxyUrl);
       final proxyRes = await http
@@ -90,7 +101,9 @@ class AiVisionService {
           .timeout(const Duration(seconds: 12));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
-        return _parseResult(parsed, 'Secure Backend AI');
+        final res = _parseResult(parsed, 'Secure Backend AI');
+        _classifyCache[cacheKey] = res;
+        return res;
       }
     } catch (_) {}
 
