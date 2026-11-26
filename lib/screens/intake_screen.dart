@@ -75,35 +75,6 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     }
   }
 
-  Future<void> _useSampleDemoPhoto() async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.drawRect(
-        const Rect.fromLTWH(0, 0, 480, 260),
-        Paint()..color = const Color(0xFFE2E8F0));
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          const Rect.fromLTWH(130, 65, 220, 130), const Radius.circular(18)),
-      Paint()..color = const Color(0xFF94A3B8),
-    );
-    canvas.drawCircle(
-        const Offset(240, 130), 42, Paint()..color = AppColors.forest);
-    final pic = recorder.endRecording();
-    final img = await pic.toImage(480, 260);
-    final data = await img.toByteData(format: ui.ImageByteFormat.png);
-    img.dispose();
-
-    if (!mounted) return;
-    _transformCtrl.value = Matrix4.identity();
-    setState(() {
-      _rawPhotoBytes = data!.buffer.asUint8List();
-      _croppedPhotoBytes = null;
-      _exifStripped = true;
-      _aiResult = null;
-      _privacyBlurred = false;
-    });
-  }
-
   Future<Uint8List?> _captureCroppedViewport() async {
     try {
       final boundary = _cropBoundaryKey.currentContext?.findRenderObject()
@@ -446,10 +417,6 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                     icon: const Icon(Icons.upload_rounded,
                                         size: 18),
                                     label: const Text('Upload Photo'),
-                                  ),
-                                  TextButton(
-                                    onPressed: _useSampleDemoPhoto,
-                                    child: const Text('Use Sample'),
                                   ),
                                 ],
                               ),
