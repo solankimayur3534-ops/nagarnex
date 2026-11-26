@@ -90,7 +90,14 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   }
 
   Future<void> _checkWithAiAndMark() async {
-    if (_rawPhotoBytes == null) return;
+    if (_rawPhotoBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Click or upload a waste photo first, then tap Check with AI!'),
+        ),
+      );
+      return;
+    }
     setState(() => _isAnalyzing = true);
 
     final cropped = await _captureCroppedViewport();
@@ -425,32 +432,32 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                         ),
                 ),
 
-                if (_rawPhotoBytes != null) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isAnalyzing ? null : _checkWithAiAndMark,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.ink,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                      label: Text(
-                        _isAnalyzing
-                            ? 'Analyzing Cropped Area with Vision AI...'
-                            : (_aiResult == null
-                                ? 'Check with AI & Auto-Fill Details'
-                                : 'Re-Check Cropped Area with AI'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isAnalyzing ? null : _checkWithAiAndMark,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _rawPhotoBytes == null
+                          ? AppColors.forest
+                          : AppColors.ink,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
+                    icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                    label: Text(
+                      _isAnalyzing
+                          ? 'Analyzing Cropped Area with Vision AI...'
+                          : (_aiResult == null
+                              ? 'Check with AI & Auto-Fill Details'
+                              : 'Re-Check Cropped Area with AI'),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                ],
+                ),
 
                 if (_isAnalyzing) ...[
                   const SizedBox(height: 10),
