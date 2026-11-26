@@ -1,0 +1,17 @@
+# NagarNex — Bengaluru Citizen-Verified Waste Accountability Platform
+
+> Independent citizen initiative for Bengaluru public and municipal waste accountability. Not affiliated with any government or municipal body.
+
+## Overview
+NagarNex converts citizen street waste photos into clustered 150m blackspots, requires GPS-matched Before/After photo proof and neighbor consensus to verify clearances, mobilizes 1-click community clean-up micro-drives, and publishes rectified street locations on a public QR board.
+
+## Web Routes
+- `/` — Landing Page & 5-Step Accountability Loop
+- `/#/map` — Live Bengaluru Blackspot & Collection Center Map + Ward Health Strip
+- `/#/intake` — 15-Second AI Waste Intake (EXIF stripped, face/plate privacy check)
+- `/#/ward-index` — Bengaluru Ward Improvement Index & CSV Export
+- `/#/drives` — Community Clean-Up Micro-Drives & Citizen Impact Passport
+- `/#/board` — Public Roadside Rectified Board & Scannable QR Sync
+
+## Serverless API
+- `POST /api/vision` — Secure server-side Gemini Vision proxy (`mode: "classify" | "verify"`).

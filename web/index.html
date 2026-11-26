@@ -1,23 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="NagarNex — Independent Citizen-Verified Waste Accountability Platform for Bengaluru.">
-  <meta name="theme-color" content="#10B981">
+
+  <title>NagarNex — Bengaluru Citizen-Verified Waste Accountability Platform</title>
+  <meta name="description" content="NagarNex turns Bengaluru street garbage reports into 150m clustered blackspots, GPS-matched Before/After verified clearances, 1-click community clean-up micro-drives, and a public QR rectified board.">
+  <meta name="keywords" content="NagarNex, Bengaluru waste management, civic tech, garbage blackspots, Before After proof, community clean-up drives, Ward Improvement Index, BuildForMyCity">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#064E3B">
+
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="NagarNex — Bengaluru Waste Accountability">
+  <meta property="og:description" content="15-second AI waste intake, 150m blackspot clustering, Before/After citizen verification, and public QR rectified street board for Bengaluru.">
+  <meta property="og:site_name" content="NagarNex">
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NagarNex — Bengaluru Citizen-Verified Waste Accountability">
+  <meta name="twitter:description" content="Independent citizen-led waste accountability for Bengaluru: AI intake, 150m blackspot clustering, Before/After proof, and 1-click clean-up drives.">
+
+  <!-- AI-Agent & Search Engine Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "NagarNex",
+    "applicationCategory": "CivicTechnology",
+    "operatingSystem": "Web, Android",
+    "description": "Independent citizen-verified public and municipal waste accountability platform for Bengaluru featuring 15-second AI waste intake, 150m blackspot clustering, Before/After GPS proof verification, community clean-up micro-drives, and a public QR rectified board.",
+    "areaServed": {
+      "@type": "City",
+      "name": "Bengaluru",
+      "addressCountry": "IN"
+    },
+    "featureList": [
+      "15-Second AI Waste Intake with EXIF Stripping & Face/Plate Privacy Guard",
+      "150m Haversine Blackspot Duplicate Clustering",
+      "Before/After GPS-Matched Citizen Proof Verification",
+      "1-Click Community Clean-Up Micro-Drives",
+      "Bengaluru Ward Improvement Index & Public QR Rectified Board"
+    ]
+  }
+  </script>
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="NagarNex">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>NagarNex — Bengaluru Waste Accountability</title>
   <link rel="manifest" href="manifest.json">
 </head>
-<body style="background-color:#FAFAFA;margin:0;">
+<body style="background-color:#F8FAFC;margin:0;">
+  <noscript>
+    <main style="font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;">
+      <h1>NagarNex — Bengaluru Citizen-Verified Waste Accountability</h1>
+      <p>NagarNex is an independent citizen-led waste accountability platform for Bengaluru. It clusters duplicate street garbage reports within 150m, verifies clearances with GPS-matched Before/After photo proof, powers 1-click community clean-up micro-drives, and publishes rectified streets on a public QR board.</p>
+      <ul>
+        <li>Live Map &amp; 150m Blackspot Clustering: /#/map</li>
+        <li>15-Second AI Waste Intake: /#/intake</li>
+        <li>Bengaluru Ward Improvement Index: /#/ward-index</li>
+        <li>Community Clean-Up Micro-Drives: /#/drives</li>
+        <li>Public Roadside Rectified Board: /#/board</li>
+      </ul>
+    </main>
+  </noscript>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
