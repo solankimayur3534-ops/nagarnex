@@ -43,6 +43,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       (AppConstants.bengaluruPresets[0]['lat'] as num).toDouble();
   late double _lng =
       (AppConstants.bengaluruPresets[0]['lng'] as num).toDouble();
+  LatLng? _liveDevicePoint;
+  bool _hasLiveGps = false;
   late String _wardName = AppConstants.bengaluruPresets[0]['ward'].toString();
   final TextEditingController _placeController = TextEditingController(
     text: AppConstants.bengaluruPresets[0]['place'].toString(),
@@ -212,6 +214,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
             AppConstants.bengaluruPresets[nearestIdx]['ward'].toString();
         _lat = pos.latitude;
         _lng = pos.longitude;
+        _liveDevicePoint = userPoint;
+        _hasLiveGps = true;
       });
       _intakeMapCtrl.move(userPoint, 15.0);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -232,6 +236,18 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   }
 
   Future<void> _submitReport() async {
+    final appState = ref.read(nagarNexProvider);
+    if (appState.enforceGpsOnly && !_hasLiveGps) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.danger,
+          content: Text(
+              'Live GPS is mandatory! Tap "1-Click Detect GPS" before submitting.'),
+        ),
+      );
+      return;
+    }
+
     final uploadBytes = _croppedPhotoBytes ?? _rawPhotoBytes;
     if (uploadBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -822,6 +838,89 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 8),
+                // Live GPS Verification Status Strip
+                Builder(
+                  builder: (_) {
+                    if (!_hasLiveGps || _liveDevicePoint == null) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.gps_not_fixed_rounded,
+                                size: 15, color: AppColors.inkMuted),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                enforceGpsOnly
+                                    ? 'GPS Mandatory: Tap "1-Click Detect GPS" to verify your live location.'
+                                    : 'Optional: Tap "1-Click Detect GPS" to verify this pin against your live GPS.',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.inkSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    final dist = GeoUtils.distanceMeters(
+                      _liveDevicePoint!,
+                      LatLng(_lat, _lng),
+                    );
+                    final isOnSite = dist <= 200;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isOnSite
+                            ? AppColors.emeraldSoft
+                            : AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color:
+                              isOnSite ? AppColors.emerald : AppColors.warning,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isOnSite
+                                ? Icons.verified_rounded
+                                : Icons.info_outline_rounded,
+                            size: 16,
+                            color: isOnSite
+                                ? AppColors.forest
+                                : AppColors.warning,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isOnSite
+                                  ? 'Live GPS Verified ✓ (${dist.round()}m from selected pin)'
+                                  : 'Remote Pin (${(dist / 1000).toStringAsFixed(1)} km from your live GPS)',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: isOnSite
+                                    ? AppColors.forest
+                                    : AppColors.warning,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
