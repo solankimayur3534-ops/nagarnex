@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +18,11 @@ class IntakeScreen extends ConsumerStatefulWidget {
 }
 
 class _IntakeScreenState extends ConsumerState<IntakeScreen> {
-  Uint8List? _photoBytes;
+  final GlobalKey _cropBoundaryKey = GlobalKey();
+  final TransformationController _transformCtrl = TransformationController();
+
+  Uint8List? _rawPhotoBytes;
+  Uint8List? _croppedPhotoBytes;
   bool _exifStripped = false;
   bool _privacyBlurred = false;
   bool _isAnalyzing = false;
@@ -39,75 +44,98 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
 
   @override
   void dispose() {
+    _transformCtrl.dispose();
     _placeController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickAndAnalyzePhoto() async {
+  Future<void> _pickPhoto(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery);
+      final picked = await picker.pickImage(source: source);
       if (picked == null) return;
-
-      setState(() {
-        _isAnalyzing = true;
-        _aiResult = null;
-      });
 
       final raw = await picked.readAsBytes();
       final stripped = await AiVisionService.stripExifAndCompress(raw);
-      final res = await AiVisionService.classifyWasteImage(
-        imageBytes: stripped,
-        hintPlace: _placeController.text,
-      );
 
       if (!mounted) return;
+      _transformCtrl.value = Matrix4.identity();
       setState(() {
-        _photoBytes = stripped;
+        _rawPhotoBytes = stripped;
+        _croppedPhotoBytes = null;
         _exifStripped = true;
-        _privacyBlurred = !res.containsFacesOrPlates;
-        _aiResult = res;
-        _selectedWasteType = res.wasteType;
-        _selectedSeverity = res.severity;
-        _isAnalyzing = false;
+        _aiResult = null;
+        _privacyBlurred = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _isAnalyzing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not load photo: $e')),
+        SnackBar(content: Text('Could not access camera/photo: $e')),
       );
     }
   }
 
   Future<void> _useSampleDemoPhoto() async {
-    setState(() => _isAnalyzing = true);
-    // Generate a clean 320x180 placeholder PNG in memory so judges can test without a file
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final paint = Paint()..color = const Color(0xFFE5E7EB);
-    canvas.drawRect(const Rect.fromLTWH(0, 0, 320, 180), paint);
-    final accent = Paint()..color = AppColors.emerald;
-    canvas.drawCircle(const Offset(160, 90), 36, accent);
+    canvas.drawRect(
+        const Rect.fromLTWH(0, 0, 480, 260),
+        Paint()..color = const Color(0xFFE2E8F0));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(130, 65, 220, 130), const Radius.circular(18)),
+      Paint()..color = const Color(0xFF94A3B8),
+    );
+    canvas.drawCircle(
+        const Offset(240, 130), 42, Paint()..color = AppColors.forest);
     final pic = recorder.endRecording();
-    final img = await pic.toImage(320, 180);
+    final img = await pic.toImage(480, 260);
     final data = await img.toByteData(format: ui.ImageByteFormat.png);
     img.dispose();
-    final bytes = data!.buffer.asUint8List();
 
+    if (!mounted) return;
+    _transformCtrl.value = Matrix4.identity();
+    setState(() {
+      _rawPhotoBytes = data!.buffer.asUint8List();
+      _croppedPhotoBytes = null;
+      _exifStripped = true;
+      _aiResult = null;
+      _privacyBlurred = false;
+    });
+  }
+
+  Future<Uint8List?> _captureCroppedViewport() async {
+    try {
+      final boundary = _cropBoundaryKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return _rawPhotoBytes;
+      final image = await boundary.toImage(pixelRatio: 1.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      return byteData?.buffer.asUint8List() ?? _rawPhotoBytes;
+    } catch (_) {
+      return _rawPhotoBytes;
+    }
+  }
+
+  Future<void> _checkWithAiAndMark() async {
+    if (_rawPhotoBytes == null) return;
+    setState(() => _isAnalyzing = true);
+
+    final cropped = await _captureCroppedViewport();
+    final targetBytes = cropped ?? _rawPhotoBytes!;
     final res = await AiVisionService.classifyWasteImage(
-      imageBytes: bytes,
+      imageBytes: targetBytes,
       hintPlace: _placeController.text,
     );
 
     if (!mounted) return;
     setState(() {
-      _photoBytes = bytes;
-      _exifStripped = true;
-      _privacyBlurred = true;
+      _croppedPhotoBytes = targetBytes;
       _aiResult = res;
       _selectedWasteType = res.wasteType;
       _selectedSeverity = res.severity;
+      _privacyBlurred = !res.containsFacesOrPlates;
       _isAnalyzing = false;
     });
   }
@@ -144,10 +172,11 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   }
 
   Future<void> _submitReport() async {
-    if (_photoBytes == null) {
+    final uploadBytes = _croppedPhotoBytes ?? _rawPhotoBytes;
+    if (uploadBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Upload a photo or load a sample photo first.')),
+            content: Text('Capture or upload a photo first.')),
       );
       return;
     }
@@ -172,7 +201,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
           wasteType: _selectedWasteType,
           severity: _selectedSeverity,
           aiConfidence: _aiResult?.confidence ?? 0.90,
-          photoBytes: _photoBytes!,
+          photoBytes: uploadBytes,
         );
 
     if (!mounted) return;
@@ -180,7 +209,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: AppColors.emeraldDark,
+        backgroundColor: AppColors.forest,
         content: Text(
           result.merged
               ? 'Merged into existing 150m blackspot (${result.report.reportCount} total reports)!'
@@ -197,12 +226,12 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       padding: const EdgeInsets.all(20),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(maxWidth: 740),
           child: Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border),
             ),
             child: Column(
@@ -218,76 +247,172 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Upload a photo. EXIF metadata is stripped automatically, Vision AI classifies waste & severity, and reports within 150m merge into one blackspot.',
+                  'Click a live photo with Camera (or upload), drag & zoom to crop the waste area, then run AI Check & Mark to auto-fill details.',
                   style: TextStyle(fontSize: 13, color: AppColors.inkSecondary),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
 
-                // Photo capture box
+                // Interactive Camera / Upload / Crop / AI Marking Box
                 Container(
-                  height: 200,
+                  height: 260,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: AppColors.surfaceMuted,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(
+                      color: _aiResult != null
+                          ? AppColors.emerald
+                          : AppColors.border,
+                      width: _aiResult != null ? 1.8 : 1,
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: _photoBytes != null
+                  child: _rawPhotoBytes != null
                       ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            ImageFiltered(
-                              imageFilter: _privacyBlurred &&
-                                      (_aiResult?.containsFacesOrPlates ??
-                                          false)
-                                  ? ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5)
-                                  : ui.ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                              child: Image.memory(_photoBytes!,
-                                  fit: BoxFit.cover),
+                            // Croppable & Draggable Viewport
+                            RepaintBoundary(
+                              key: _cropBoundaryKey,
+                              child: InteractiveViewer(
+                                transformationController: _transformCtrl,
+                                minScale: 1.0,
+                                maxScale: 3.5,
+                                panEnabled: true,
+                                scaleEnabled: true,
+                                child: ImageFiltered(
+                                  imageFilter: _privacyBlurred &&
+                                          (_aiResult?.containsFacesOrPlates ??
+                                              false)
+                                      ? ui.ImageFilter.blur(
+                                          sigmaX: 5, sigmaY: 5)
+                                      : ui.ImageFilter.blur(
+                                          sigmaX: 0, sigmaY: 0),
+                                  child: Image.memory(
+                                    _rawPhotoBytes!,
+                                    fit: BoxFit.contain,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                  ),
+                                ),
+                              ),
                             ),
+
+                            // Subtle Crop Guide Frame
+                            IgnorePointer(
+                              child: Container(
+                                margin: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _aiResult != null
+                                        ? AppColors.emeraldMint
+                                        : Colors.white.withValues(alpha: 0.7),
+                                    width: _aiResult != null ? 2.2 : 1.2,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // AI Detection Marking Overlay after AI check
+                            if (_aiResult != null)
+                              Positioned(
+                                bottom: 12,
+                                left: 12,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.forest
+                                        .withValues(alpha: 0.92),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.auto_awesome_rounded,
+                                          size: 14,
+                                          color: AppColors.emeraldMint),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)',
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
                             if (_exifStripped)
                               Positioned(
                                 top: 10,
                                 left: 10,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
+                                      horizontal: 9, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: AppColors.ink,
+                                    color: AppColors.ink.withValues(alpha: 0.85),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text(
-                                    'EXIF Stripped',
+                                    'EXIF Stripped · Drag/Zoom to Crop',
                                     style: TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.white,
                                     ),
                                   ),
                                 ),
                               ),
+
                             Positioned(
                               top: 10,
                               right: 10,
-                              child: FilledButton.tonalIcon(
-                                onPressed: _isAnalyzing
-                                    ? null
-                                    : () => setState(() {
-                                          _photoBytes = null;
-                                          _aiResult = null;
-                                          _exifStripped = false;
-                                        }),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: AppColors.surface,
-                                  foregroundColor: AppColors.ink,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                ),
-                                icon: const Icon(Icons.refresh_rounded,
-                                    size: 16),
-                                label: const Text('Change Photo',
-                                    style: TextStyle(fontSize: 11)),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FilledButton.tonalIcon(
+                                    onPressed: _isAnalyzing
+                                        ? null
+                                        : () => _transformCtrl.value =
+                                            Matrix4.identity(),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.surface,
+                                      foregroundColor: AppColors.ink,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                    ),
+                                    icon: const Icon(Icons.crop_free_rounded,
+                                        size: 15),
+                                    label: const Text('Reset Crop',
+                                        style: TextStyle(fontSize: 11)),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  FilledButton.tonalIcon(
+                                    onPressed: _isAnalyzing
+                                        ? null
+                                        : () => setState(() {
+                                              _rawPhotoBytes = null;
+                                              _croppedPhotoBytes = null;
+                                              _aiResult = null;
+                                              _exifStripped = false;
+                                            }),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.surface,
+                                      foregroundColor: AppColors.ink,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                    ),
+                                    icon: const Icon(Icons.refresh_rounded,
+                                        size: 15),
+                                    label: const Text('Retake',
+                                        style: TextStyle(fontSize: 11)),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -296,25 +421,35 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.add_a_photo_outlined,
-                                  size: 34, color: AppColors.inkMuted),
-                              const SizedBox(height: 8),
+                              const Icon(Icons.photo_camera_outlined,
+                                  size: 36, color: AppColors.inkMuted),
+                              const SizedBox(height: 10),
                               Wrap(
                                 spacing: 10,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
                                 children: [
                                   FilledButton.icon(
-                                    onPressed: _pickAndAnalyzePhoto,
+                                    onPressed: () =>
+                                        _pickPhoto(ImageSource.camera),
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.ink,
+                                      backgroundColor: AppColors.forest,
                                       foregroundColor: Colors.white,
                                     ),
+                                    icon: const Icon(Icons.camera_alt_rounded,
+                                        size: 18),
+                                    label: const Text('Click Photo (Camera)'),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () =>
+                                        _pickPhoto(ImageSource.gallery),
                                     icon: const Icon(Icons.upload_rounded,
                                         size: 18),
                                     label: const Text('Upload Photo'),
                                   ),
-                                  OutlinedButton(
+                                  TextButton(
                                     onPressed: _useSampleDemoPhoto,
-                                    child: const Text('Use Demo Sample'),
+                                    child: const Text('Use Sample'),
                                   ),
                                 ],
                               ),
@@ -323,14 +458,36 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                         ),
                 ),
 
-                if (_isAnalyzing) ...[
-                  const SizedBox(height: 14),
-                  const LinearProgressIndicator(color: AppColors.emerald),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Stripping EXIF & running AI waste classification...',
-                    style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
+                if (_rawPhotoBytes != null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _isAnalyzing ? null : _checkWithAiAndMark,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.ink,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                      label: Text(
+                        _isAnalyzing
+                            ? 'Analyzing Cropped Area with Vision AI...'
+                            : (_aiResult == null
+                                ? 'Check with AI & Auto-Fill Details'
+                                : 'Re-Check Cropped Area with AI'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   ),
+                ],
+
+                if (_isAnalyzing) ...[
+                  const SizedBox(height: 10),
+                  const LinearProgressIndicator(color: AppColors.emerald),
                 ],
 
                 if (_aiResult != null) ...[
@@ -346,11 +503,11 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'AI Detected: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% conf)',
+                          'Auto-Filled by ${_aiResult!.providerLabel}: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.emeraldDark,
+                            color: AppColors.forest,
                           ),
                         ),
                         if (_aiResult!.containsFacesOrPlates) ...[
@@ -367,7 +524,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                               ),
                             ),
                             value: _privacyBlurred,
-                            activeThumbColor: AppColors.emeraldDark,
+                            activeThumbColor: AppColors.forest,
                             onChanged: (v) =>
                                 setState(() => _privacyBlurred = v),
                           ),
@@ -420,7 +577,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                 DropdownButtonFormField<int>(
                   initialValue: _presetIndex,
                   decoration: const InputDecoration(
-                    labelText: 'Bengaluru Location / Demo GPS Preset',
+                    labelText: 'Bengaluru Location / GPS Preset',
                     border: OutlineInputBorder(),
                   ),
                   items: List.generate(
@@ -481,11 +638,11 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   child: FilledButton.icon(
                     onPressed: _isSubmitting ? null : _submitReport,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.emerald,
+                      backgroundColor: AppColors.forest,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     icon: const Icon(Icons.send_rounded),
