@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,9 @@ class IntakeScreen extends ConsumerStatefulWidget {
 class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   final GlobalKey _cropBoundaryKey = GlobalKey();
   final TransformationController _transformCtrl = TransformationController();
+  final MapController _intakeMapCtrl = MapController();
+  bool _satelliteMode = false;
+  bool _tilt3d = false;
 
   Uint8List? _rawPhotoBytes;
   Uint8List? _croppedPhotoBytes;
@@ -137,12 +141,37 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
 
   void _selectPreset(int i) {
     final p = AppConstants.bengaluruPresets[i];
+    final lat = (p['lat'] as num).toDouble();
+    final lng = (p['lng'] as num).toDouble();
     setState(() {
       _presetIndex = i;
       _wardName = p['ward'].toString();
       _placeController.text = p['place'].toString();
-      _lat = (p['lat'] as num).toDouble();
-      _lng = (p['lng'] as num).toDouble();
+      _lat = lat;
+      _lng = lng;
+    });
+    _intakeMapCtrl.move(LatLng(lat, lng), 14.5);
+  }
+
+  void _pickFromMap(LatLng point) {
+    int nearestIdx = 0;
+    double minDist = double.infinity;
+    for (int i = 0; i < AppConstants.bengaluruPresets.length; i++) {
+      final p = AppConstants.bengaluruPresets[i];
+      final d = GeoUtils.distanceMeters(
+        point,
+        LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
+      );
+      if (d < minDist) {
+        minDist = d;
+        nearestIdx = i;
+      }
+    }
+    setState(() {
+      _presetIndex = nearestIdx;
+      _wardName = AppConstants.bengaluruPresets[nearestIdx]['ward'].toString();
+      _lat = point.latitude;
+      _lng = point.longitude;
     });
   }
 
@@ -184,6 +213,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
         _lat = pos.latitude;
         _lng = pos.longitude;
       });
+      _intakeMapCtrl.move(userPoint, 15.0);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.forest,
@@ -681,6 +711,118 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                         fontWeight: FontWeight.w600,
                         color: AppColors.emeraldDark),
                   ),
+                const SizedBox(height: 12),
+                // Interactive Tap-to-Pick Free Map (Street / Satellite / 3D Tilt)
+                Container(
+                  height: 210,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Stack(
+                    children: [
+                      Transform(
+                        alignment: Alignment.center,
+                        transform: _tilt3d
+                            ? (Matrix4.identity()
+                              ..setEntry(3, 2, 0.0012)
+                              ..rotateX(-0.34)
+                              ..scaleByDouble(1.12, 1.12, 1.0, 1.0))
+                            : Matrix4.identity(),
+                        child: FlutterMap(
+                          mapController: _intakeMapCtrl,
+                          options: MapOptions(
+                            initialCenter: LatLng(_lat, _lng),
+                            initialZoom: 14.0,
+                            onTap: enforceGpsOnly
+                                ? null
+                                : (_, point) => _pickFromMap(point),
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: _satelliteMode
+                                  ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                                  : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.nagarnex.app',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(_lat, _lng),
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.location_on_rounded,
+                                    color: AppColors.danger,
+                                    size: 36,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            enforceGpsOnly
+                                ? 'Live GPS Locked'
+                                : 'Tap anywhere on map to pin spot',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ChoiceChip(
+                              label: Text(_satelliteMode ? 'Satellite' : 'Street',
+                                  style: const TextStyle(fontSize: 10.5)),
+                              selected: _satelliteMode,
+                              selectedColor: AppColors.forest,
+                              labelStyle: TextStyle(
+                                color: _satelliteMode
+                                    ? Colors.white
+                                    : AppColors.ink,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              onSelected: (v) =>
+                                  setState(() => _satelliteMode = v),
+                            ),
+                            const SizedBox(width: 6),
+                            ChoiceChip(
+                              label: const Text('3D View',
+                                  style: TextStyle(fontSize: 10.5)),
+                              selected: _tilt3d,
+                              selectedColor: AppColors.forest,
+                              labelStyle: TextStyle(
+                                color: _tilt3d ? Colors.white : AppColors.ink,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              onSelected: (v) => setState(() => _tilt3d = v),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _placeController,

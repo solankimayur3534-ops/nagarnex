@@ -24,6 +24,8 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   final MapController _mapController = MapController();
   MapFilter _filter = MapFilter.all;
   bool _showCenters = true;
+  bool _satelliteMode = false;
+  bool _tilt3d = false;
   String _focusWard = 'All Bengaluru';
   String? _selectedReportId;
   String? _selectedCenterId;
@@ -147,18 +149,27 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
           clipBehavior: Clip.antiAlias,
           child: Stack(
             children: [
-              FlutterMap(
-                mapController: _mapController,
-                options: const MapOptions(
-                  initialCenter: AppConstants.bengaluruCenter,
-                  initialZoom: 12.0,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.nagarnex.app',
+              Transform(
+                alignment: Alignment.center,
+                transform: _tilt3d
+                    ? (Matrix4.identity()
+                      ..setEntry(3, 2, 0.0012)
+                      ..rotateX(-0.34)
+                      ..scaleByDouble(1.12, 1.12, 1.0, 1.0))
+                    : Matrix4.identity(),
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: const MapOptions(
+                    initialCenter: AppConstants.bengaluruCenter,
+                    initialZoom: 12.0,
                   ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: _satelliteMode
+                          ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                          : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.nagarnex.app',
+                    ),
                   MarkerLayer(
                     markers: [
                       ...filteredReports.map((report) {
@@ -263,7 +274,31 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                         }),
                     ],
                   ),
-                ],
+                  ],
+                ),
+              ),
+              Positioned(
+                bottom: 14,
+                left: 14,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _PillFilter(
+                      label: _satelliteMode ? 'Satellite ✓' : 'Satellite',
+                      active: _satelliteMode,
+                      activeBg: AppColors.forest,
+                      onTap: () =>
+                          setState(() => _satelliteMode = !_satelliteMode),
+                    ),
+                    const SizedBox(width: 6),
+                    _PillFilter(
+                      label: _tilt3d ? '3D View ✓' : '3D Camera',
+                      active: _tilt3d,
+                      activeBg: AppColors.forest,
+                      onTap: () => setState(() => _tilt3d = !_tilt3d),
+                    ),
+                  ],
+                ),
               ),
               // Top-left cluster pill
               Positioned(
