@@ -439,7 +439,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: const Text(
-                                    'EXIF Stripped · Drag/Zoom to Crop',
+                                    'EXIF Stripped',
                                     style: TextStyle(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
@@ -625,42 +625,53 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                 ],
 
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedWasteType,
-                        decoration: const InputDecoration(
-                          labelText: 'Waste Category',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: AppConstants.wasteTypes
-                            .map((t) =>
-                                DropdownMenuItem(value: t, child: Text(t)))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() => _selectedWasteType = v);
-                        },
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final categoryField = DropdownButtonFormField<String>(
+                      initialValue: _selectedWasteType,
+                      decoration: const InputDecoration(
+                        labelText: 'Waste Category',
+                        border: OutlineInputBorder(),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedSeverity,
-                        decoration: const InputDecoration(
-                          labelText: 'Severity',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: AppConstants.severities
-                            .map((s) =>
-                                DropdownMenuItem(value: s, child: Text(s)))
-                            .toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() => _selectedSeverity = v);
-                        },
+                      items: AppConstants.wasteTypes
+                          .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _selectedWasteType = v);
+                      },
+                    );
+                    final severityField = DropdownButtonFormField<String>(
+                      initialValue: _selectedSeverity,
+                      decoration: const InputDecoration(
+                        labelText: 'Severity',
+                        border: OutlineInputBorder(),
                       ),
-                    ),
-                  ],
+                      items: AppConstants.severities
+                          .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _selectedSeverity = v);
+                      },
+                    );
+                    if (constraints.maxWidth >= 480) {
+                      return Row(
+                        children: [
+                          Expanded(child: categoryField),
+                          const SizedBox(width: 12),
+                          Expanded(child: severityField),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        categoryField,
+                        const SizedBox(height: 12),
+                        severityField,
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 16),
@@ -802,7 +813,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                         ),
                       ),
                       Positioned(
-                        top: 8,
+                        bottom: 8,
                         right: 8,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,

@@ -728,14 +728,18 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${r.wasteType} • ${r.severity} Severity • ${(r.aiConfidence * 100).round()}% AI Match',
+                      '${r.wasteType} • ${r.severity} • ${(r.aiConfidence * 100).round()}% AI • ${GeoUtils.formatReportedTimestamp(r.createdAt)}',
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.inkSecondary,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           isCleared
@@ -749,7 +753,6 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                                 : AppColors.danger,
                           ),
                         ),
-                        const Spacer(),
                         if (isCleared)
                           TextButton(
                             onPressed: () => context.go('/board'),
@@ -1095,8 +1098,8 @@ class _MobileSpotDetailCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${report.wardName} • ${report.reportCount} ${report.reportCount == 1 ? "Report" : "Reports"} Merged',
-            style: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
+            '${report.wardName} • ${report.reportCount} ${report.reportCount == 1 ? "Report" : "Reports"} Merged • ${GeoUtils.formatReportedTimestamp(report.createdAt)}',
+            style: const TextStyle(fontSize: 11.5, color: AppColors.inkMuted),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1244,9 +1247,12 @@ class _MiniAuditTile extends StatelessWidget {
             children: [
               Icon(icon, size: 13, color: AppColors.forest),
               const SizedBox(width: 4),
-              Text(title,
-                  style:
-                      const TextStyle(fontSize: 10, color: AppColors.inkMuted)),
+              Expanded(
+                child: Text(title,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.inkMuted)),
+              ),
             ],
           ),
           const SizedBox(height: 4),

@@ -360,23 +360,25 @@ class RoadsideBoardScreen extends ConsumerWidget {
                               color: AppColors.forest),
                         ),
                         const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'NagarNex  PUBLIC DISPLAY',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.ink,
+                        const Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'NagarNex  PUBLIC DISPLAY',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.ink,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Bengaluru Rectified Waste Locations • Kiosk Node 04',
-                              style: TextStyle(
-                                  fontSize: 11.5, color: AppColors.inkMuted),
-                            ),
-                          ],
+                              Text(
+                                'Bengaluru Rectified Waste Locations • Kiosk Node 04',
+                                style: TextStyle(
+                                    fontSize: 11.5, color: AppColors.inkMuted),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -456,7 +458,7 @@ class _BoardProofBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 130,
+      constraints: const BoxConstraints(minHeight: 130),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isAfter ? AppColors.emeraldSoft : AppColors.surfaceMuted,
@@ -468,7 +470,9 @@ class _BoardProofBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
             children: [
               Container(
                 padding:
@@ -486,7 +490,6 @@ class _BoardProofBox extends StatelessWidget {
                   ),
                 ),
               ),
-              const Spacer(),
               if (matchBadge != null)
                 Container(
                   padding:
@@ -506,7 +509,7 @@ class _BoardProofBox extends StatelessWidget {
                 ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 14),
           Icon(
             isAfter
                 ? Icons.verified_rounded

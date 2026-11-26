@@ -225,27 +225,40 @@ class DrivesScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const CircleAvatar(
-                        radius: 13,
-                        backgroundColor: AppColors.forest,
-                        child: Text('AM',
-                            style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${drive.rsvpCount} verified neighbors joining',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.inkSecondary,
-                          fontWeight: FontWeight.w600,
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 260),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const CircleAvatar(
+                              radius: 13,
+                              backgroundColor: AppColors.forest,
+                              child: Text('AM',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                '${drive.rsvpCount} verified neighbors joining',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.inkSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Spacer(),
                       FilledButton(
                         onPressed: () => ref
                             .read(nagarNexProvider.notifier)

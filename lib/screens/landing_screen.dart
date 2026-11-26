@@ -17,7 +17,9 @@ class LandingScreen extends ConsumerWidget {
         .length;
     final totalMergedReports =
         state.reports.fold<int>(0, (sum, r) => sum + r.reportCount);
-    final isWide = MediaQuery.sizeOf(context).width >= 960;
+    final width = MediaQuery.sizeOf(context).width;
+    final isWide = width >= 960;
+    final isMobile = width < 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFF041F17),
@@ -52,17 +54,9 @@ class LandingScreen extends ConsumerWidget {
               ClipRRect(
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF041F17).withValues(alpha: 0.55),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                    ),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 14 : 24, vertical: 12),
                     child: Row(
                       children: [
                         Container(
@@ -89,36 +83,41 @@ class LandingScreen extends ConsumerWidget {
                             size: 20,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          AppConstants.appName,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
                         const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
-                            ),
-                          ),
-                          child: const Text(
-                            'Bengaluru',
+                        Flexible(
+                          child: Text(
+                            AppConstants.appName,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.emeraldMint,
+                              fontSize: isMobile ? 17 : 20,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              letterSpacing: -0.4,
                             ),
                           ),
                         ),
+                        if (!isMobile) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: const Text(
+                              'Bengaluru',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.emeraldMint,
+                              ),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         if (isWide) ...[
                           TextButton(
@@ -142,16 +141,17 @@ class LandingScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        TextButton(
-                          onPressed: () => context.go('/board'),
-                          child: const Text(
-                            'Roadside Board',
-                            style: TextStyle(
-                              color: Color(0xFFE2E8F0),
-                              fontWeight: FontWeight.w600,
+                        if (!isMobile)
+                          TextButton(
+                            onPressed: () => context.go('/board'),
+                            child: const Text(
+                              'Roadside Board',
+                              style: TextStyle(
+                                color: Color(0xFFE2E8F0),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
                         const SizedBox(width: 8),
                         FilledButton(
                           onPressed: () => context.go('/map'),

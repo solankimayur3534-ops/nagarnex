@@ -182,7 +182,7 @@ class UpdatesSheet extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${r.wardName} • ${r.wasteType} • ${r.reportCount} merged • ${r.verifyVotes}/${AppConstants.requiredVerifyVotes} verify votes',
+                              '${r.wardName} • ${r.wasteType} • ${r.reportCount} merged • ${GeoUtils.formatReportedTimestamp(r.createdAt)}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 color: AppColors.inkSecondary,

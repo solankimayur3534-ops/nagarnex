@@ -360,8 +360,12 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                                   ),
                                 ),
                                 Expanded(
-                                  flex: 2,
-                                  child: Row(
+                                  flex: isWide ? 2 : 2,
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Text(
                                         '${w.civicScore}',
@@ -373,7 +377,6 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                                               : AppColors.emeraldDark,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 3),

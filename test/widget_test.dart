@@ -158,4 +158,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Community Clean-Up Micro-Drives'), findsOneWidget);
   });
+
+  testWidgets('Mobile 375x812 renders all routes without overflow',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ProviderScope(child: NagarNexApp()));
+    await tester.pumpAndSettle();
+
+    // Navigate back to Landing if router retained previous test route
+    if (find.text('NagarNex').evaluate().isNotEmpty &&
+        find.text('Launch App').evaluate().isEmpty) {
+      await tester.tap(find.text('NagarNex').first);
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Launch App'), findsOneWidget);
+
+    await tester.tap(find.text('Launch App'));
+    await tester.pumpAndSettle();
+
+    // Tap bottom nav items on mobile
+    await tester.tap(find.text('Ward Index'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bengaluru Ward Waste Index & Clearance Ledger'),
+        findsOneWidget);
+
+    await tester.tap(find.text('Micro-Drives'));
+    await tester.pumpAndSettle();
+    expect(find.text('Community Clean-Up Micro-Drives'), findsOneWidget);
+
+    await tester.tap(find.text('Rectified Board'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verified Street Solutions (Bangalore)'), findsOneWidget);
+
+    // Tap Report button to verify Intake on 375px mobile
+    await tester.tap(find.byTooltip('Report Waste'));
+    await tester.pumpAndSettle();
+    expect(find.text('15-Second AI Waste Intake'), findsOneWidget);
+  });
 }

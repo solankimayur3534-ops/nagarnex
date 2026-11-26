@@ -44,6 +44,7 @@ class NavShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 1024;
+    final isMobile = width < 600;
     final profile = ref.watch(nagarNexProvider).profile;
 
     int selectedIndex =
@@ -63,7 +64,7 @@ class NavShell extends ConsumerWidget {
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: AppColors.border),
         ),
-        titleSpacing: 16,
+        titleSpacing: isMobile ? 8 : 16,
         title: Row(
           children: [
             InkWell(
@@ -172,44 +173,58 @@ class NavShell extends ConsumerWidget {
           ],
         ),
         actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.emeraldMint.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.star_rounded,
-                    size: 14, color: AppColors.forest),
-                const SizedBox(width: 3),
-                Text(
-                  '${profile.civicPoints}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.forest,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: () => context.go('/intake'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.forest,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(
+          if (!isMobile) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.emeraldMint.withValues(alpha: 0.45),
                 borderRadius: BorderRadius.circular(20),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded,
+                      size: 14, color: AppColors.forest),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${profile.civicPoints}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            icon: const Icon(Icons.add_circle_outline_rounded, size: 15),
-            label: Text(
-              isDesktop ? 'Report Waste' : 'Report',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            const SizedBox(width: 8),
+          ],
+          IconButton(
+            onPressed: () => context.go('/intake'),
+            tooltip: 'Report Waste',
+            icon: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.forest,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add_circle_outline_rounded,
+                      size: 14, color: Colors.white),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      isDesktop ? 'Report Waste' : 'Report',
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 6),
