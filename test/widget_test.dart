@@ -143,7 +143,7 @@ void main() {
     expect(find.text('Launch App'), findsOneWidget);
 
     // Navigate to Roadside Board from Landing Page
-    await tester.tap(find.text('Roadside Board'));
+    await tester.tap(find.text('Roadside Board').first);
     await tester.pumpAndSettle();
     expect(find.text('Verified Street Solutions (Bangalore)'), findsOneWidget);
 

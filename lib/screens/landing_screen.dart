@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,363 +17,348 @@ class LandingScreen extends ConsumerWidget {
         .length;
     final totalMergedReports =
         state.reports.fold<int>(0, (sum, r) => sum + r.reportCount);
+    final isWide = MediaQuery.sizeOf(context).width >= 960;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
+      backgroundColor: const Color(0xFF041F17),
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          // Top Nav
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppColors.forest,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: const Icon(
-                    Icons.recycling_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  AppConstants.appName,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => context.go('/board'),
-                  child: const Text(
-                    'Roadside Board',
-                    style: TextStyle(
-                      color: AppColors.inkSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => context.go('/map'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.forest,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                  child: const Text('Launch App'),
-                ),
-              ],
-            ),
+          // Full-bleed background image covering the entire viewport
+          Image.asset(
+            'assets/images/hero_bg.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1060),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Hero Section with Subtle Botanical Background + Deep Forest Scrim
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: AppColors.forest,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: Image.asset(
-                                'assets/images/hero_bg.jpg',
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      const Color(0xFF052E16)
-                                          .withValues(alpha: 0.88),
-                                      AppColors.forest.withValues(alpha: 0.78),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 32, vertical: 38),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.emeraldMint
-                                          .withValues(alpha: 0.22),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: AppColors.emeraldMint
-                                            .withValues(alpha: 0.5),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'BENGALURU · PUBLIC & MUNICIPAL WASTE ACCOUNTABILITY',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.7,
-                                        color: AppColors.emeraldMint,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  const Text(
-                                    'Turn street garbage reports into\nverified, visible clearances.',
-                                    style: TextStyle(
-                                      fontSize: 40,
-                                      height: 1.12,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: -1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const SizedBox(
-                                    width: 660,
-                                    child: Text(
-                                      'NagarNex is an independent citizen-verified waste accountability platform for Bengaluru. It clusters duplicate reports within 150m into blackspots, requires GPS-matched Before/After proof to close tickets, powers 1-click clean-up micro-drives, and publishes rectified streets on a public QR board.',
-                                      style: TextStyle(
-                                        fontSize: 15.5,
-                                        height: 1.55,
-                                        color: Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 26),
-                                  Wrap(
-                                    spacing: 12,
-                                    runSpacing: 12,
-                                    children: [
-                                      FilledButton.icon(
-                                        onPressed: () => context.go('/map'),
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor:
-                                              AppColors.emeraldMint,
-                                          foregroundColor:
-                                              const Color(0xFF052E16),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 22, vertical: 16),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        icon: const Icon(Icons.map_outlined),
-                                        label: const Text(
-                                          'Explore Live Bengaluru Map',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w800),
-                                        ),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: () => context.go('/intake'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          side: BorderSide(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.45),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 22, vertical: 16),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        icon: const Icon(
-                                            Icons.add_a_photo_outlined),
-                                        label: const Text(
-                                          'Report Waste in 15s',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: () => context.go('/board'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          side: BorderSide(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.45),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 22, vertical: 16),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                        ),
-                                        icon: const Icon(
-                                            Icons.qr_code_2_rounded),
-                                        label: const Text(
-                                          'Roadside Rectified Board',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 36),
-                      // Metrics strip
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final wide = constraints.maxWidth >= 700;
-                          final cards = [
-                            _MetricCard(
-                              label: 'Merged Citizen Reports',
-                              value: '$totalMergedReports',
-                              sub: 'Clustered into ${state.reports.length} spots',
-                            ),
-                            _MetricCard(
-                              label: 'Verified Cleared Spots',
-                              value: '$clearedCount',
-                              sub: 'Before/After GPS proofed',
-                            ),
-                            _MetricCard(
-                              label: 'Active Micro-Drives',
-                              value: '${state.drives.length}',
-                              sub: '1-Click community clean-ups',
-                            ),
-                            _MetricCard(
-                              label: 'Collection Hubs Mapped',
-                              value: '${state.centers.length}',
-                              sub: 'Dry, Wet & E-Waste drop points',
-                            ),
-                          ];
-                          if (wide) {
-                            return Row(
-                              children: cards
-                                  .map((c) => Expanded(
-                                        child: Padding(
-                                          padding:
-                                              const EdgeInsets.only(right: 12),
-                                          child: c,
-                                        ),
-                                      ))
-                                  .toList(),
-                            );
-                          }
-                          return Column(
-                            children: cards
-                                .map((c) => Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 12),
-                                      child: c,
-                                    ))
-                                .toList(),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 40),
-                      const Text(
-                        '5-Step Accountability Loop',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
-                        children: const [
-                          _WorkflowCard(
-                            step: '01',
-                            title: '15-Second AI Intake',
-                            desc:
-                                'Capture photo + GPS. Vision AI tags waste type & severity, strips EXIF metadata, and flags faces/plates.',
-                          ),
-                          _WorkflowCard(
-                            step: '02',
-                            title: '150m Blackspot Clustering',
-                            desc:
-                                'Nearby duplicate reports merge into one cluster with repeat recurrence alerts instead of ticket spam.',
-                          ),
-                          _WorkflowCard(
-                            step: '03',
-                            title: '1-Click Micro-Drives',
-                            desc:
-                                'Overdue or recurring blackspots trigger citizen clean-up drives with live volunteer RSVP counts.',
-                          ),
-                          _WorkflowCard(
-                            step: '04',
-                            title: 'Before / After Proof',
-                            desc:
-                                'Spots cannot close on a status toggle alone — GPS-matched After photos & citizen consensus are required.',
-                          ),
-                          _WorkflowCard(
-                            step: '05',
-                            title: 'Roadside QR Leaderboard',
-                            desc:
-                                'Numbered rectified Bengaluru streets, clearance times, and Ward Improvement Scores displayed publicly.',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+          // Deep 3D forest-emerald atmospheric scrim for razor-sharp readability
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF041F17).withValues(alpha: 0.78),
+                  const Color(0xFF064E3B).withValues(alpha: 0.74),
+                  const Color(0xFF021610).withValues(alpha: 0.92),
+                ],
               ),
             ),
           ),
 
-          // Compliance Footer
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.border)),
-            ),
-            child: const Text(
-              AppConstants.disclaimerText,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.inkMuted),
-            ),
+          // Main scrollable content + glass top bar + footer
+          Column(
+            children: [
+              // Frosted Glass Top Nav
+              ClipRRect(
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF041F17).withValues(alpha: 0.55),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [AppColors.emerald, AppColors.forest],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black38,
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.recycling_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          AppConstants.appName,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.4,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: const Text(
+                            'Bengaluru',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.emeraldMint,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (isWide) ...[
+                          TextButton(
+                            onPressed: () => context.go('/ward-index'),
+                            child: const Text(
+                              'Ward Index',
+                              style: TextStyle(
+                                color: Color(0xFFE2E8F0),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.go('/drives'),
+                            child: const Text(
+                              'Micro-Drives',
+                              style: TextStyle(
+                                color: Color(0xFFE2E8F0),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                        TextButton(
+                          onPressed: () => context.go('/board'),
+                          child: const Text(
+                            'Roadside Board',
+                            style: TextStyle(
+                              color: Color(0xFFE2E8F0),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: () => context.go('/map'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.emeraldMint,
+                            foregroundColor: const Color(0xFF041F17),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text(
+                            'Launch App',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1120),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Hero Split: Left Copy + Right 3D Floating Civic Card
+                          if (isWide)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  flex: 6,
+                                  child: _HeroCopy(
+                                    onMap: () => context.go('/map'),
+                                    onIntake: () => context.go('/intake'),
+                                    onBoard: () => context.go('/board'),
+                                  ),
+                                ),
+                                const SizedBox(width: 32),
+                                Expanded(
+                                  flex: 4,
+                                  child: _Hero3DPreviewCard(
+                                    totalMerged: totalMergedReports,
+                                    clearedCount: clearedCount,
+                                    drivesCount: state.drives.length,
+                                    onOpenDrives: () => context.go('/drives'),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else ...[
+                            _HeroCopy(
+                              onMap: () => context.go('/map'),
+                              onIntake: () => context.go('/intake'),
+                              onBoard: () => context.go('/board'),
+                            ),
+                            const SizedBox(height: 24),
+                            _Hero3DPreviewCard(
+                              totalMerged: totalMergedReports,
+                              clearedCount: clearedCount,
+                              drivesCount: state.drives.length,
+                              onOpenDrives: () => context.go('/drives'),
+                            ),
+                          ],
+
+                          const SizedBox(height: 36),
+                          // 3D Glassmorphic KPI Strip
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final wide = constraints.maxWidth >= 700;
+                              final cards = [
+                                _GlassMetricCard(
+                                  icon: Icons.layers_outlined,
+                                  label: 'Merged Citizen Reports',
+                                  value: '$totalMergedReports',
+                                  sub:
+                                      'Clustered into ${state.reports.length} spots',
+                                  onTap: () => context.go('/map'),
+                                ),
+                                _GlassMetricCard(
+                                  icon: Icons.verified_outlined,
+                                  label: 'Verified Cleared Spots',
+                                  value: '$clearedCount',
+                                  sub: 'Before/After GPS proofed',
+                                  onTap: () => context.go('/board'),
+                                ),
+                                _GlassMetricCard(
+                                  icon: Icons.groups_outlined,
+                                  label: 'Active Micro-Drives',
+                                  value: '${state.drives.length}',
+                                  sub: '1-Click community clean-ups',
+                                  onTap: () => context.go('/drives'),
+                                ),
+                                _GlassMetricCard(
+                                  icon: Icons.recycling_rounded,
+                                  label: 'Collection Hubs Mapped',
+                                  value: '${state.centers.length}',
+                                  sub: 'Dry, Wet & E-Waste drop points',
+                                  onTap: () => context.go('/map'),
+                                ),
+                              ];
+                              if (wide) {
+                                return Row(
+                                  children: cards
+                                      .map((c) => Expanded(
+                                            child: Padding(
+                                              padding: const EdgeInsets.only(
+                                                  right: 14),
+                                              child: c,
+                                            ),
+                                          ))
+                                      .toList(),
+                                );
+                              }
+                              return Column(
+                                children: cards
+                                    .map((c) => Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 12),
+                                          child: c,
+                                        ))
+                                    .toList(),
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: 44),
+                          const Text(
+                            '5-Step Citizen Accountability Loop',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 14,
+                            runSpacing: 14,
+                            children: const [
+                              _GlassWorkflowCard(
+                                step: '01',
+                                title: '15-Second AI Intake',
+                                desc:
+                                    'Capture photo + GPS. Vision AI tags waste type & severity, strips EXIF metadata, and flags faces/plates.',
+                              ),
+                              _GlassWorkflowCard(
+                                step: '02',
+                                title: '150m Blackspot Clustering',
+                                desc:
+                                    'Nearby duplicate reports merge into one cluster with repeat recurrence alerts instead of ticket spam.',
+                              ),
+                              _GlassWorkflowCard(
+                                step: '03',
+                                title: '1-Click Micro-Drives',
+                                desc:
+                                    'Overdue or recurring blackspots trigger citizen clean-up drives with live volunteer RSVP counts.',
+                              ),
+                              _GlassWorkflowCard(
+                                step: '04',
+                                title: 'Before / After Proof',
+                                desc:
+                                    'Spots cannot close on a status toggle alone — GPS-matched After photos & citizen consensus are required.',
+                              ),
+                              _GlassWorkflowCard(
+                                step: '05',
+                                title: 'Roadside QR Leaderboard',
+                                desc:
+                                    'Numbered rectified Bengaluru streets, clearance times, and Ward Improvement Scores displayed publicly.',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Compliance Footer
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF021610).withValues(alpha: 0.85),
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                ),
+                child: const Text(
+                  AppConstants.disclaimerText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -380,53 +366,297 @@ class LandingScreen extends ConsumerWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String sub;
+class _HeroCopy extends StatelessWidget {
+  final VoidCallback onMap;
+  final VoidCallback onIntake;
+  final VoidCallback onBoard;
 
-  const _MetricCard({
+  const _HeroCopy({
+    required this.onMap,
+    required this.onIntake,
+    required this.onBoard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.emeraldMint.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.emeraldMint.withValues(alpha: 0.45),
+            ),
+          ),
+          child: const Text(
+            '● BENGALURU · CITIZEN-VERIFIED WASTE ACCOUNTABILITY',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+              color: AppColors.emeraldMint,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Turn street garbage reports into verified, visible clearances.',
+          style: TextStyle(
+            fontSize: 42,
+            height: 1.12,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: -1.0,
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'NagarNex unites citizens across Bengaluru neighborhoods to cluster duplicate reports within 150m, verify clean-ups with GPS-matched Before/After proof, mobilize 1-click micro-drives, and spotlight rectified streets.',
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.55,
+            color: Color(0xFFE2E8F0),
+          ),
+        ),
+        const SizedBox(height: 26),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            FilledButton.icon(
+              onPressed: onMap,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.emeraldMint,
+                foregroundColor: const Color(0xFF041F17),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 8,
+              ),
+              icon: const Icon(Icons.map_outlined),
+              label: const Text(
+                'Explore Live Bengaluru Map',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onIntake,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: const Text(
+                'Report Waste in 15s',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onBoard,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.qr_code_2_rounded),
+              label: const Text(
+                'Roadside Board',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Hero3DPreviewCard extends StatelessWidget {
+  final int totalMerged;
+  final int clearedCount;
+  final int drivesCount;
+  final VoidCallback onOpenDrives;
+
+  const _Hero3DPreviewCard({
+    required this.totalMerged,
+    required this.clearedCount,
+    required this.drivesCount,
+    required this.onOpenDrives,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.001)
+        ..rotateY(-0.04)
+        ..rotateX(0.02),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.18),
+                  Colors.white.withValues(alpha: 0.07),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.2,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x55000000),
+                  blurRadius: 28,
+                  offset: Offset(0, 14),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.emeraldMint,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'LIVE CIVIC PULSE',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF041F17),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.public_rounded,
+                        color: AppColors.emeraldMint, size: 18),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Citizen Action Across Bengaluru',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Neighbors verifying street clearances & hosting clean-up sprints.',
+                  style: TextStyle(fontSize: 12.5, color: Color(0xFFCBD5E1)),
+                ),
+                const SizedBox(height: 16),
+                _PulseRow(
+                  icon: Icons.people_outline_rounded,
+                  label: 'Active Community Clean-Up Drives',
+                  val: '$drivesCount Live',
+                ),
+                const SizedBox(height: 10),
+                _PulseRow(
+                  icon: Icons.verified_rounded,
+                  label: 'GPS Before/After Verified Fixes',
+                  val: '$clearedCount Cleared',
+                ),
+                const SizedBox(height: 10),
+                _PulseRow(
+                  icon: Icons.hub_outlined,
+                  label: '150m Clustered Citizen Reports',
+                  val: '$totalMerged Merged',
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onOpenDrives,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF041F17),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.groups_rounded, size: 18),
+                    label: const Text(
+                      'Join a Clean-Up Micro-Drive →',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PulseRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String val;
+
+  const _PulseRow({
+    required this.icon,
     required this.label,
-    required this.value,
-    required this.sub,
+    required this.val,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        color: Colors.black.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkMuted,
+          Icon(icon, size: 18, color: AppColors.emeraldMint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0)),
             ),
           ),
-          const SizedBox(height: 8),
           Text(
-            value,
+            val,
             style: const TextStyle(
-              fontSize: 30,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            sub,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.emeraldDark,
-              fontWeight: FontWeight.w600,
+              color: AppColors.emeraldMint,
             ),
           ),
         ],
@@ -435,12 +665,103 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _WorkflowCard extends StatelessWidget {
+class _GlassMetricCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String sub;
+  final VoidCallback onTap;
+
+  const _GlassMetricCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.sub,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withValues(alpha: 0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 16, color: AppColors.emeraldMint),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFCBD5E1),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  sub,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.emeraldMint,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassWorkflowCard extends StatelessWidget {
   final String step;
   final String title;
   final String desc;
 
-  const _WorkflowCard({
+  const _GlassWorkflowCard({
     required this.step,
     required this.title,
     required this.desc,
@@ -449,44 +770,64 @@ class _WorkflowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 336,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              step,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.emeraldDark,
+      width: 348,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.14),
+                  Colors.white.withValues(alpha: 0.05),
+                ],
               ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33000000),
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.emeraldMint,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  desc,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.45,
+                    color: Color(0xFFCBD5E1),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              desc,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: AppColors.inkSecondary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
