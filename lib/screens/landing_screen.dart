@@ -91,105 +91,168 @@ class LandingScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Hero Pill
+                      // Hero Section with Subtle Botanical Background + Deep Forest Scrim
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                        width: double.infinity,
                         decoration: BoxDecoration(
-                          color: AppColors.emeraldSoft,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppColors.emerald),
+                          color: AppColors.forest,
+                          borderRadius: BorderRadius.circular(24),
                         ),
-                        child: const Text(
-                          'BENGALURU · PUBLIC & MUNICIPAL WASTE ACCOUNTABILITY',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.7,
-                            color: AppColors.emeraldDark,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Turn street garbage reports into\nverified, visible clearances.',
-                        style: TextStyle(
-                          fontSize: 40,
-                          height: 1.12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.ink,
-                          letterSpacing: -1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const SizedBox(
-                        width: 680,
-                        child: Text(
-                          'NagarNex is an independent citizen-verified waste accountability platform for Bengaluru. It clusters duplicate reports within 150m into blackspots, requires GPS-matched Before/After proof to close tickets, powers 1-click clean-up micro-drives, and publishes rectified streets on a public QR board.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            height: 1.55,
-                            color: AppColors.inkSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 26),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          FilledButton.icon(
-                            onPressed: () => context.go('/map'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.emerald,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 22, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Image.asset(
+                                'assets/images/hero_bg.jpg',
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const SizedBox.shrink(),
                               ),
                             ),
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text(
-                              'Explore Live Bengaluru Map',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => context.go('/intake'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.ink,
-                              side: const BorderSide(color: AppColors.border),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 22, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                            Positioned.fill(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF052E16)
+                                          .withValues(alpha: 0.88),
+                                      AppColors.forest.withValues(alpha: 0.78),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                            icon: const Icon(Icons.add_a_photo_outlined),
-                            label: const Text(
-                              'Report Waste in 15s',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => context.go('/board'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.ink,
-                              side: const BorderSide(color: AppColors.border),
+                            Padding(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 22, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                  horizontal: 32, vertical: 38),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.emeraldMint
+                                          .withValues(alpha: 0.22),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: AppColors.emeraldMint
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'BENGALURU · PUBLIC & MUNICIPAL WASTE ACCOUNTABILITY',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.7,
+                                        color: AppColors.emeraldMint,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 18),
+                                  const Text(
+                                    'Turn street garbage reports into\nverified, visible clearances.',
+                                    style: TextStyle(
+                                      fontSize: 40,
+                                      height: 1.12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const SizedBox(
+                                    width: 660,
+                                    child: Text(
+                                      'NagarNex is an independent citizen-verified waste accountability platform for Bengaluru. It clusters duplicate reports within 150m into blackspots, requires GPS-matched Before/After proof to close tickets, powers 1-click clean-up micro-drives, and publishes rectified streets on a public QR board.',
+                                      style: TextStyle(
+                                        fontSize: 15.5,
+                                        height: 1.55,
+                                        color: Color(0xFFE2E8F0),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 26),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    children: [
+                                      FilledButton.icon(
+                                        onPressed: () => context.go('/map'),
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor:
+                                              AppColors.emeraldMint,
+                                          foregroundColor:
+                                              const Color(0xFF052E16),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 22, vertical: 16),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        icon: const Icon(Icons.map_outlined),
+                                        label: const Text(
+                                          'Explore Live Bengaluru Map',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w800),
+                                        ),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () => context.go('/intake'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: BorderSide(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.45),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 22, vertical: 16),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                            Icons.add_a_photo_outlined),
+                                        label: const Text(
+                                          'Report Waste in 15s',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () => context.go('/board'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: BorderSide(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.45),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 22, vertical: 16),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                            Icons.qr_code_2_rounded),
+                                        label: const Text(
+                                          'Roadside Rectified Board',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            icon: const Icon(Icons.qr_code_2_rounded),
-                            label: const Text(
-                              'Roadside Rectified Board',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 36),
