@@ -47,7 +47,7 @@ class AppConstants {
   static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
   static const String liveBoardUrl = String.fromEnvironment(
     'NAGARNEX_PUBLIC_URL',
-    defaultValue: 'https://nagarnex.vercel.app/#/board',
+    defaultValue: 'https://nagarnex.in/#/board',
   );
 
   static bool get hasSupabaseConfig =>
