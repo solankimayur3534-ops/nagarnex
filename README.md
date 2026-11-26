@@ -52,5 +52,6 @@ Deploy the generated `build/web` directory to Vercel or Firebase Hosting.
 - **Framework:** Flutter (Web + Android responsive UI)
 - **Packages:** `flutter_map`, `latlong2`, `supabase_flutter`, `geolocator`, `image_picker`, `qr_flutter`, `go_router`, `flutter_riverpod`, `http`, `intl`
 - **Map Tiles:** OpenStreetMap (`tile.openstreetmap.org`)
-- **AI Models:** Google Gemini 2.5 Flash Vision REST API (with deterministic offline fallback)
-- **Datasets:** Synthetic Bengaluru ward & blackspot demo seed data (`is_demo = true`)
+- **AI Models:** Google Gemini (`gemini-3-flash-preview`) via secure server-side proxy (`/api/vision`)
+- **Datasets:** Synthetic Bengaluru ward & blackspot demo seed data (`is_demo = true`) and public BBMP/BSWML waste metrics
+- **Full Project Documentation:** See [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) for problem research, end-to-end user flow, security, limitations, roadmap, and full disclosures.
