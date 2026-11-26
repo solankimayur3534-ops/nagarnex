@@ -162,6 +162,57 @@ class SupabaseService {
     } catch (_) {}
   }
 
+  static Future<CitizenProfile?> fetchOrCreateCitizenProfile({
+    required String profileId,
+    required String displayName,
+    required String wardName,
+  }) async {
+    final client = _client;
+    if (client == null) return null;
+    try {
+      final existing = await client
+          .from('citizen_profiles')
+          .select()
+          .eq('id', profileId)
+          .maybeSingle();
+      if (existing != null) {
+        return CitizenProfile.fromJson(Map<String, dynamic>.from(existing));
+      }
+      final inserted = await client
+          .from('citizen_profiles')
+          .insert({
+            'id': profileId,
+            'display_name': displayName,
+            'ward_name': wardName,
+            'verified_fixes': 0,
+            'drives_joined': 0,
+            'consensus_votes': 0,
+            'civic_points': 50,
+          })
+          .select()
+          .single();
+      return CitizenProfile.fromJson(Map<String, dynamic>.from(inserted));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> upsertCitizenProfile(CitizenProfile profile) async {
+    final client = _client;
+    if (client == null) return;
+    try {
+      await client.from('citizen_profiles').upsert({
+        'id': profile.id,
+        'display_name': profile.displayName,
+        'ward_name': profile.wardName,
+        'verified_fixes': profile.verifiedFixes,
+        'drives_joined': profile.drivesJoined,
+        'consensus_votes': profile.consensusVotes,
+        'civic_points': profile.civicPoints,
+      });
+    } catch (_) {}
+  }
+
   static List<WardStats> computeWardStats(List<WasteReport> reports) {
     final Map<String, List<WasteReport>> byWard = {};
     for (final r in reports) {

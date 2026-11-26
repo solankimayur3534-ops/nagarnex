@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
 import '../models/citizen_profile.dart';
@@ -74,12 +76,51 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     final reports = await SupabaseService.fetchWasteReports();
     final centers = await SupabaseService.fetchCollectionCenters();
     final drives = await SupabaseService.fetchMicroDrives();
+
+    CitizenProfile profile = state.profile;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var cid = prefs.getString('nagarnex_citizen_id');
+      if (cid == null || cid.isEmpty) {
+        cid = const Uuid().v4();
+        await prefs.setString('nagarnex_citizen_id', cid);
+      }
+      final remote = await SupabaseService.fetchOrCreateCitizenProfile(
+        profileId: cid,
+        displayName: prefs.getString('nagarnex_citizen_name') ??
+            'Bengaluru Citizen',
+        wardName: prefs.getString('nagarnex_citizen_ward') ??
+            'Ward 151 Koramangala',
+      );
+      if (remote != null) profile = remote;
+    } catch (_) {}
+
     state = state.copyWith(
       reports: reports,
       centers: centers,
       drives: drives,
+      profile: profile,
       isLoading: false,
     );
+  }
+
+  Future<void> updateCitizenIdentity({
+    required String displayName,
+    required String wardName,
+  }) async {
+    final updated = state.profile.copyWith(
+      displayName: displayName.trim().isEmpty
+          ? state.profile.displayName
+          : displayName.trim(),
+      wardName: wardName,
+    );
+    state = state.copyWith(profile: updated);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nagarnex_citizen_name', updated.displayName);
+      await prefs.setString('nagarnex_citizen_ward', updated.wardName);
+    } catch (_) {}
+    await SupabaseService.upsertCitizenProfile(updated);
   }
 
   /// Submits a new AI-classified waste report. Automatically merges into an
@@ -118,6 +159,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
         ),
       );
       await SupabaseService.updateClusterMerge(updated);
+      await SupabaseService.upsertCitizenProfile(state.profile);
       return (merged: true, report: updated);
     }
 
@@ -159,6 +201,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     );
 
     await SupabaseService.insertWasteReport(newReport);
+    await SupabaseService.upsertCitizenProfile(state.profile);
     return (merged: false, report: newReport);
   }
 
@@ -206,6 +249,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     );
 
     await SupabaseService.updateVerification(updated);
+    await SupabaseService.upsertCitizenProfile(state.profile);
     return updated;
   }
 
@@ -264,6 +308,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       ),
     );
     await SupabaseService.updateDriveRsvp(updated);
+    await SupabaseService.upsertCitizenProfile(state.profile);
   }
 }
 

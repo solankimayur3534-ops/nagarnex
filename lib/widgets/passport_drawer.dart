@@ -6,6 +6,84 @@ import '../services/app_state.dart';
 class PassportDrawer extends ConsumerWidget {
   const PassportDrawer({super.key});
 
+  Future<void> _showEditProfileDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+    String currentWard,
+  ) async {
+    final nameCtrl = TextEditingController(text: currentName);
+    String selectedWard = AppConstants.bengaluruPresets
+            .any((p) => p['ward'].toString() == currentWard)
+        ? currentWard
+        : AppConstants.bengaluruPresets[0]['ward'].toString();
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text('Update Citizen Passport'),
+          content: SizedBox(
+            width: 380,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedWard,
+                  decoration: const InputDecoration(
+                    labelText: 'Home Bengaluru Ward',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: AppConstants.bengaluruPresets
+                      .map((p) => DropdownMenuItem(
+                            value: p['ward'].toString(),
+                            child: Text(p['ward'].toString()),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) selectedWard = v;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await ref
+                    .read(nagarNexProvider.notifier)
+                    .updateCitizenIdentity(
+                      displayName: nameCtrl.text,
+                      wardName: selectedWard,
+                    );
+                if (ctx.mounted) Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.forest,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save Profile'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      nameCtrl.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(nagarNexProvider).profile;
@@ -56,6 +134,16 @@ class PassportDrawer extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: () => _showEditProfileDialog(
+                      context,
+                      ref,
+                      profile.displayName,
+                      profile.wardName,
+                    ),
+                    tooltip: 'Edit Name & Ward',
+                    icon: const Icon(Icons.edit_outlined, size: 18),
                   ),
                 ],
               ),
