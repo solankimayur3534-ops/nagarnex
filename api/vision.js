@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { mode = 'classify', imageBase64 } = req.body || {};
+  const { mode = 'classify', imageBase64, beforeImageBase64 } = req.body || {};
   if (!imageBase64) {
     return res.status(400).json({ error: 'Missing imageBase64' });
   }
@@ -17,8 +17,16 @@ export default async function handler(req, res) {
 
   const prompt =
     mode === 'verify'
-      ? 'Evaluate this "After" clearance photo for a street waste report. Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
+      ? 'Compare the street waste Before and After photo(s). Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
       : 'Analyze this Bengaluru street waste photo. Return ONLY valid JSON with keys: "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
+
+  const geminiParts = [
+    { text: prompt },
+    ...(beforeImageBase64
+      ? [{ inline_data: { mime_type: 'image/png', data: beforeImageBase64 } }]
+      : []),
+    { inline_data: { mime_type: 'image/png', data: imageBase64 } },
+  ];
 
   try {
     if (geminiKey) {
@@ -28,14 +36,7 @@ export default async function handler(req, res) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  { inline_data: { mime_type: 'image/png', data: imageBase64 } },
-                ],
-              },
-            ],
+            contents: [{ parts: geminiParts }],
             generationConfig: { responseMimeType: 'application/json' },
           }),
         }

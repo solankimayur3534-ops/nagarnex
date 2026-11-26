@@ -245,6 +245,7 @@ class AiVisionService {
   /// first, or direct dev key if configured, with a deterministic demo fallback.
   static Future<BeforeAfterVerificationResult> verifyBeforeAfter({
     required Uint8List afterBytes,
+    Uint8List? beforeBytes,
     String? beforeUrl,
   }) async {
     try {
@@ -256,6 +257,8 @@ class AiVisionService {
             body: jsonEncode({
               'mode': 'verify',
               'imageBase64': base64Encode(afterBytes),
+              if (beforeBytes != null)
+                'beforeImageBase64': base64Encode(beforeBytes),
             }),
           )
           .timeout(const Duration(seconds: 12));

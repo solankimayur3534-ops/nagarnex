@@ -55,8 +55,12 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
         verifyPoint,
       );
 
+      final cachedBefore = ref
+          .read(nagarNexProvider)
+          .localPhotoCache[widget.report.beforePhotoUrl];
       final aiRes = await AiVisionService.verifyBeforeAfter(
         afterBytes: stripped,
+        beforeBytes: cachedBefore,
         beforeUrl: widget.report.beforePhotoUrl,
       );
 
