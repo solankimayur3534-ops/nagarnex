@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
 import '../services/app_state.dart';
 import 'passport_drawer.dart';
+import 'updates_sheet.dart';
 
 class NavItemSpec {
   final String label;
@@ -212,6 +213,36 @@ class NavShell extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 6),
+          Builder(
+            builder: (ctx) {
+              final navState = ref.watch(nagarNexProvider);
+              final badgeCount = navState.unreadUpdates > 0
+                  ? navState.unreadUpdates
+                  : navState.myReportIds.length;
+              return IconButton(
+                onPressed: () {
+                  ref.read(nagarNexProvider.notifier).markUpdatesRead();
+                  showDialog<void>(
+                    context: ctx,
+                    builder: (_) => const UpdatesSheet(),
+                  );
+                },
+                tooltip: 'My Problem Updates',
+                icon: Badge(
+                  isLabelVisible: badgeCount > 0,
+                  backgroundColor: navState.unreadUpdates > 0
+                      ? AppColors.danger
+                      : AppColors.emerald,
+                  label: Text('$badgeCount'),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: AppColors.ink,
+                    size: 21,
+                  ),
+                ),
+              );
+            },
+          ),
           Builder(
             builder: (ctx) => IconButton(
               onPressed: () => Scaffold.of(ctx).openEndDrawer(),

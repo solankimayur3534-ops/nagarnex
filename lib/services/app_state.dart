@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
@@ -17,6 +18,8 @@ class NagarNexState {
   final List<MicroDrive> drives;
   final CitizenProfile profile;
   final Map<String, Uint8List> localPhotoCache;
+  final Set<String> myReportIds;
+  final int unreadUpdates;
   final bool isLoading;
 
   const NagarNexState({
@@ -25,6 +28,8 @@ class NagarNexState {
     required this.drives,
     required this.profile,
     this.localPhotoCache = const {},
+    this.myReportIds = const {},
+    this.unreadUpdates = 0,
     this.isLoading = false,
   });
 
@@ -34,6 +39,8 @@ class NagarNexState {
     List<MicroDrive>? drives,
     CitizenProfile? profile,
     Map<String, Uint8List>? localPhotoCache,
+    Set<String>? myReportIds,
+    int? unreadUpdates,
     bool? isLoading,
   }) {
     return NagarNexState(
@@ -42,6 +49,8 @@ class NagarNexState {
       drives: drives ?? this.drives,
       profile: profile ?? this.profile,
       localPhotoCache: localPhotoCache ?? this.localPhotoCache,
+      myReportIds: myReportIds ?? this.myReportIds,
+      unreadUpdates: unreadUpdates ?? this.unreadUpdates,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -78,8 +87,11 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     final drives = await SupabaseService.fetchMicroDrives();
 
     CitizenProfile profile = state.profile;
+    Set<String> trackedIds = {...state.myReportIds};
     try {
       final prefs = await SharedPreferences.getInstance();
+      final savedIds = prefs.getStringList('nagarnex_my_reports') ?? [];
+      trackedIds.addAll(savedIds);
       var cid = prefs.getString('nagarnex_citizen_id');
       if (cid == null || cid.isEmpty) {
         cid = const Uuid().v4();
@@ -100,8 +112,56 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       centers: centers,
       drives: drives,
       profile: profile,
+      myReportIds: trackedIds,
       isLoading: false,
     );
+
+    _subscribeRealtimeUpdates();
+  }
+
+  void _subscribeRealtimeUpdates() {
+    if (!AppConstants.hasSupabaseConfig) return;
+    try {
+      Supabase.instance.client
+          .channel('public:waste_reports')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'waste_reports',
+            callback: (payload) {
+              final updated = WasteReport.fromJson(payload.newRecord);
+              final isTracked = state.myReportIds.contains(updated.id);
+              state = state.copyWith(
+                reports: state.reports
+                    .map((r) => r.id == updated.id ? updated : r)
+                    .toList(),
+                unreadUpdates:
+                    isTracked ? state.unreadUpdates + 1 : state.unreadUpdates,
+              );
+            },
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
+  Future<void> toggleFollowReport(String reportId) async {
+    final next = Set<String>.from(state.myReportIds);
+    if (next.contains(reportId)) {
+      next.remove(reportId);
+    } else {
+      next.add(reportId);
+    }
+    state = state.copyWith(myReportIds: next);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('nagarnex_my_reports', next.toList());
+    } catch (_) {}
+  }
+
+  void markUpdatesRead() {
+    if (state.unreadUpdates > 0) {
+      state = state.copyWith(unreadUpdates: 0);
+    }
   }
 
   Future<void> updateCitizenIdentity({
@@ -152,12 +212,18 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       final nextReports = state.reports
           .map((r) => r.id == existing.id ? updated : r)
           .toList();
+      final nextTracked = {...state.myReportIds, existing.id};
       state = state.copyWith(
         reports: nextReports,
+        myReportIds: nextTracked,
         profile: state.profile.copyWith(
           civicPoints: state.profile.civicPoints + 15,
         ),
       );
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList('nagarnex_my_reports', nextTracked.toList());
+      } catch (_) {}
       await SupabaseService.updateClusterMerge(updated);
       await SupabaseService.upsertCitizenProfile(state.profile);
       return (merged: true, report: updated);
@@ -192,13 +258,19 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     final nextCache = Map<String, Uint8List>.from(state.localPhotoCache)
       ..[photoKey] = photoBytes;
 
+    final nextTracked = {...state.myReportIds, newReport.id};
     state = state.copyWith(
       reports: [newReport, ...state.reports],
       localPhotoCache: nextCache,
+      myReportIds: nextTracked,
       profile: state.profile.copyWith(
         civicPoints: state.profile.civicPoints + 25,
       ),
     );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('nagarnex_my_reports', nextTracked.toList());
+    } catch (_) {}
 
     await SupabaseService.insertWasteReport(newReport);
     await SupabaseService.upsertCitizenProfile(state.profile);
@@ -234,11 +306,13 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     final nextCache = Map<String, Uint8List>.from(state.localPhotoCache)
       ..[afterKey] = afterPhotoBytes;
 
+    final isTracked = state.myReportIds.contains(report.id);
     state = state.copyWith(
       reports: state.reports
           .map((r) => r.id == report.id ? updated : r)
           .toList(),
       localPhotoCache: nextCache,
+      unreadUpdates: isTracked ? state.unreadUpdates + 1 : state.unreadUpdates,
       profile: state.profile.copyWith(
         consensusVotes: state.profile.consensusVotes + 1,
         verifiedFixes: isCleared

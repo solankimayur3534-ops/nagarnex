@@ -658,6 +658,28 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                             color: AppColors.ink,
                           ),
                         ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          onPressed: () {
+                            ref
+                                .read(nagarNexProvider.notifier)
+                                .toggleFollowReport(r.id);
+                          },
+                          tooltip: state.myReportIds.contains(r.id)
+                              ? 'Tracking Updates'
+                              : 'Follow Updates',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            state.myReportIds.contains(r.id)
+                                ? Icons.notifications_active_rounded
+                                : Icons.notifications_none_rounded,
+                            size: 16,
+                            color: state.myReportIds.contains(r.id)
+                                ? AppColors.forest
+                                : AppColors.inkMuted,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
