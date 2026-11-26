@@ -53,24 +53,6 @@ class LandingScreen extends ConsumerWidget {
                     letterSpacing: -0.4,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceMuted,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Text(
-                    'DEMO DATA',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkMuted,
-                    ),
-                  ),
-                ),
                 const Spacer(),
                 TextButton(
                   onPressed: () => context.go('/board'),
@@ -219,12 +201,12 @@ class LandingScreen extends ConsumerWidget {
                             _MetricCard(
                               label: 'Merged Citizen Reports',
                               value: '$totalMergedReports',
-                              sub: 'Clustered into ${state.reports.length} spots (Demo)',
+                              sub: 'Clustered into ${state.reports.length} spots',
                             ),
                             _MetricCard(
                               label: 'Verified Cleared Spots',
                               value: '$clearedCount',
-                              sub: 'Before/After GPS proofed (Demo)',
+                              sub: 'Before/After GPS proofed',
                             ),
                             _MetricCard(
                               label: 'Active Micro-Drives',

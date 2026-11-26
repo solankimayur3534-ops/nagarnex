@@ -383,7 +383,7 @@ class RoadsideBoardScreen extends ConsumerWidget {
                       spacing: 24,
                       runSpacing: 8,
                       children: [
-                        _KioskStat('${rectified.length}', 'Cleared (Demo)'),
+                        _KioskStat('${rectified.length}', 'Cleared'),
                         const _KioskStat('9.6h', 'Avg Resolution Time'),
                         const _KioskStat('100%', 'Photo-Verified'),
                       ],

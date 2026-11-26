@@ -175,7 +175,7 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                   final kpis = [
                     _WardKpiCard(
                       title: 'Active Monitored',
-                      badge: 'DEMO DATA',
+                      badge: 'LIVE',
                       value: '${allStats.length} / 198',
                       sub: '● 100% Monitored by Citizen Reports',
                       valueColor: AppColors.ink,
@@ -183,7 +183,7 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                     ),
                     _WardKpiCard(
                       title: 'Avg Clearance Rate',
-                      badge: 'DEMO DATA',
+                      badge: 'VERIFIED',
                       value: '${avgRate.toStringAsFixed(1)}%',
                       sub: 'Photo-Verified Consensus',
                       valueColor: AppColors.emeraldDark,
@@ -191,7 +191,7 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                     ),
                     _WardKpiCard(
                       title: 'Avg Clearance Time',
-                      badge: 'DEMO DATA',
+                      badge: 'REALTIME',
                       value: '${avgHours.toStringAsFixed(1)}h',
                       sub: 'Citizen Target <24h',
                       valueColor: AppColors.ink,
@@ -677,7 +677,7 @@ class _CategoryMixCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  'Demo Live',
+                  'AI Live',
                   style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,

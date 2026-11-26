@@ -8,6 +8,7 @@ import '../core/geo_utils.dart';
 import '../models/collection_center.dart';
 import '../models/waste_report.dart';
 import '../services/app_state.dart';
+import '../services/supabase_service.dart';
 import '../widgets/verify_proof_modal.dart';
 
 enum MapFilter { all, plasticMixed, wetFood, eWasteDebris, cleared }
@@ -23,6 +24,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   final MapController _mapController = MapController();
   MapFilter _filter = MapFilter.all;
   bool _showCenters = true;
+  String _focusWard = 'All Bengaluru';
   String? _selectedReportId;
   String? _selectedCenterId;
 
@@ -30,8 +32,12 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(nagarNexProvider);
     final isWide = MediaQuery.sizeOf(context).width >= 960;
+    final wardStats = state.wardStats;
 
     final filteredReports = state.reports.where((r) {
+      if (_focusWard != 'All Bengaluru' && r.wardName != _focusWard) {
+        return false;
+      }
       switch (_filter) {
         case MapFilter.all:
           return true;
@@ -60,168 +66,73 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               orElse: () => null,
             );
 
-    final telemetryBar = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
+    final clearedCount = state.reports
+        .where((r) => r.status == ReportStatus.verifiedCleared)
+        .length;
+    final totalMerged =
+        state.reports.fold<int>(0, (sum, r) => sum + r.reportCount);
+
+    final wardOptions = <String>[
+      'All Bengaluru',
+      ...state.reports.map((r) => r.wardName).toSet(),
+    ];
+
+    final filterStrip = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.emeraldMint.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  '● Live Sync Active • Bengaluru 2026',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.forest,
-                  ),
-                ),
-              ),
-              const Text(
-                '• Citizen-Verified Waste Intelligence',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkSecondary,
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Text(
-                  'Ward Circle 4',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ],
+          _PillFilter(
+            label: 'All Spots (${state.reports.length})',
+            active: _filter == MapFilter.all,
+            activeBg: AppColors.forest,
+            onTap: () => setState(() => _filter = MapFilter.all),
           ),
-          Wrap(
-            spacing: 10,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.verified_user_outlined,
-                      size: 14, color: AppColors.inkSecondary),
-                  SizedBox(width: 4),
-                  Text(
-                    'Public EXIF Stripped • Auto-Masking On',
-                    style:
-                        TextStyle(fontSize: 11, color: AppColors.inkSecondary),
-                  ),
-                ],
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.gps_fixed_rounded,
-                        size: 13, color: AppColors.ink),
-                    SizedBox(width: 4),
-                    Text(
-                      'GPS ±10m Precision',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(width: 8),
+          _PillFilter(
+            label: 'Plastic & Mixed',
+            active: _filter == MapFilter.plasticMixed,
+            activeBg: AppColors.forest,
+            onTap: () => setState(() => _filter = MapFilter.plasticMixed),
+          ),
+          const SizedBox(width: 8),
+          _PillFilter(
+            label: 'Wet/Food',
+            active: _filter == MapFilter.wetFood,
+            activeBg: AppColors.forest,
+            onTap: () => setState(() => _filter = MapFilter.wetFood),
+          ),
+          const SizedBox(width: 8),
+          _PillFilter(
+            label: 'E-Waste & Debris',
+            active: _filter == MapFilter.eWasteDebris,
+            activeBg: AppColors.forest,
+            onTap: () => setState(() => _filter = MapFilter.eWasteDebris),
+          ),
+          const SizedBox(width: 8),
+          _PillFilter(
+            label: 'Verified Cleared ($clearedCount)',
+            active: _filter == MapFilter.cleared,
+            activeBg: AppColors.emerald,
+            softMint: true,
+            onTap: () => setState(() => _filter = MapFilter.cleared),
+          ),
+          const SizedBox(width: 8),
+          _PillFilter(
+            label: 'Collection Centers (Dry/Wet)',
+            active: _showCenters,
+            activeBg: AppColors.info,
+            softBlue: true,
+            onTap: () => setState(() => _showCenters = !_showCenters),
           ),
         ],
       ),
-    );
-
-    final filterStrip = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _PillFilter(
-          label: 'All Spots (${state.reports.length})',
-          active: _filter == MapFilter.all,
-          activeBg: AppColors.forest,
-          onTap: () => setState(() => _filter = MapFilter.all),
-        ),
-        _PillFilter(
-          label: 'Plastic & Mixed',
-          active: _filter == MapFilter.plasticMixed,
-          activeBg: AppColors.forest,
-          onTap: () => setState(() => _filter = MapFilter.plasticMixed),
-        ),
-        _PillFilter(
-          label: 'Wet/Food',
-          active: _filter == MapFilter.wetFood,
-          activeBg: AppColors.forest,
-          onTap: () => setState(() => _filter = MapFilter.wetFood),
-        ),
-        _PillFilter(
-          label: 'E-Waste & Debris',
-          active: _filter == MapFilter.eWasteDebris,
-          activeBg: AppColors.forest,
-          onTap: () => setState(() => _filter = MapFilter.eWasteDebris),
-        ),
-        _PillFilter(
-          label:
-              'Verified Cleared (${state.reports.where((r) => r.status == ReportStatus.verifiedCleared).length})',
-          active: _filter == MapFilter.cleared,
-          activeBg: AppColors.emerald,
-          softMint: true,
-          onTap: () => setState(() => _filter = MapFilter.cleared),
-        ),
-        _PillFilter(
-          label: 'Collection Centers (Dry/Wet)',
-          active: _showCenters,
-          activeBg: AppColors.info,
-          softBlue: true,
-          onTap: () => setState(() => _showCenters = !_showCenters),
-        ),
-      ],
     );
 
     final mapCard = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          height: isWide ? 520 : 380,
+          height: isWide ? 470 : 310,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.border),
@@ -240,7 +151,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 mapController: _mapController,
                 options: const MapOptions(
                   initialCenter: AppConstants.bengaluruCenter,
-                  initialZoom: 12.2,
+                  initialZoom: 12.0,
                 ),
                 children: [
                   TileLayer(
@@ -354,20 +265,21 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                   ),
                 ],
               ),
+              // Top-left cluster pill
               Positioned(
-                top: 14,
-                left: 14,
+                top: 12,
+                left: 12,
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.surface.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Text(
-                    'Auto-Clustered (150m Radius)  •  Bengaluru',
-                    style: TextStyle(
+                  child: Text(
+                    '$totalMerged Reports Merged | 150m Radius Spatial Cluster ●',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -375,13 +287,64 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                   ),
                 ),
               ),
-              if (selectedReport != null || selectedCenter != null)
+              // Top-right Ward Focus selector
+              if (isWide)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: wardOptions.contains(_focusWard)
+                            ? _focusWard
+                            : 'All Bengaluru',
+                        isDense: true,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                        items: wardOptions
+                            .map((w) => DropdownMenuItem(
+                                  value: w,
+                                  child: Text('FOCUS: $w'),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val == null) return;
+                          setState(() => _focusWard = val);
+                          if (val == 'All Bengaluru') {
+                            _mapController.move(
+                                AppConstants.bengaluruCenter, 12.0);
+                          } else {
+                            final match = state.reports
+                                .where((r) => r.wardName == val)
+                                .toList();
+                            if (match.isNotEmpty) {
+                              _mapController.move(
+                                  LatLng(match.first.lat, match.first.lng),
+                                  13.8);
+                              setState(() => _selectedReportId = match.first.id);
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              // Desktop floating spot card
+              if (isWide && (selectedReport != null || selectedCenter != null))
                 Positioned(
                   bottom: 14,
-                  left: 14,
-                  right: isWide ? null : 14,
+                  right: 14,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 340),
+                    constraints: const BoxConstraints(maxWidth: 330),
                     child: selectedReport != null
                         ? _FloatingSpotCard(
                             report: selectedReport,
@@ -412,23 +375,66 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
           runSpacing: 6,
           children: [
             _LegendDot(color: AppColors.danger, label: 'Repeat Blackspot'),
-            _LegendDot(color: AppColors.warning, label: 'Pending Check'),
+            _LegendDot(color: AppColors.warning, label: 'Pending Review'),
             _LegendDot(color: AppColors.emerald, label: 'Verified Cleared'),
-            _LegendDot(color: AppColors.forest, label: 'Collection Point'),
+            _LegendDot(color: AppColors.forest, label: 'Collection Center'),
           ],
         ),
-        const SizedBox(height: 4),
-        const Text(
-          'Map rendered with OpenStreetMap telemetry (Bengaluru 2026)',
-          style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
+        if (!isWide && selectedReport != null) ...[
+          const SizedBox(height: 14),
+          _MobileSpotDetailCard(
+            report: selectedReport,
+            onVerify: () async {
+              await showDialog<bool>(
+                context: context,
+                builder: (_) => VerifyProofModal(report: selectedReport),
+              );
+            },
+            onStartDrive: () async {
+              await ref.read(nagarNexProvider.notifier).createMicroDrive(
+                    reportId: selectedReport.id,
+                    title: 'Clean-Up Drive · ${selectedReport.placeName}',
+                    wardName: selectedReport.wardName,
+                    meetingPoint: selectedReport.placeName,
+                    driveTime: DateTime.now().add(const Duration(days: 1)),
+                  );
+              if (!context.mounted) return;
+              context.go('/drives');
+            },
+          ),
+        ],
+        const SizedBox(height: 16),
+        // Interconnected 3 Live Ward Health Cards -> tap to open Ward Index
+        _WardHealthStrip(
+          wardStats: wardStats,
+          onSelectWard: (w) {
+            final match = state.reports
+                .where((r) => r.wardName == w.wardName)
+                .toList();
+            if (match.isNotEmpty) {
+              _mapController.move(LatLng(match.first.lat, match.first.lng), 13.8);
+              setState(() {
+                _focusWard = w.wardName;
+                _selectedReportId = match.first.id;
+              });
+            }
+          },
+          onOpenWardIndex: () => context.go('/ward-index'),
         ),
+        if (!isWide && state.rectifiedReports.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _MobileVerifiedProofCard(
+            report: state.rectifiedReports.first,
+            onViewBoard: () => context.go('/board'),
+          ),
+        ],
       ],
     );
 
     final rightColumn = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Fast Civic Logging Card
+        // 15-Second Citizen Intake Card -> Tap to Capture
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -442,45 +448,36 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               Row(
                 children: [
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'FAST CIVIC LOGGING',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                            color: AppColors.emeraldDark,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Report a Waste Blackspot in 15 Seconds',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '⚡ 15-Second Citizen Intake',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                   Container(
-                    width: 38,
-                    height: 38,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.emeraldMint.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.qr_code_scanner_rounded,
-                        color: AppColors.forest, size: 20),
+                    child: const Text(
+                      'Instant AI',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const Text(
-                'Snap one live photo. Vision AI estimates waste category & severity, strips EXIF, and prevents duplicate ward pins within 150m.',
+                'Snap photo on-site. Automatic geo-tagging, EXIF stripping, face/plate masking, and waste category classification.',
                 style: TextStyle(
                   fontSize: 12.5,
                   height: 1.45,
@@ -492,12 +489,46 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  _MiniInfoChip(label: 'GPS ±10m'),
+                  _MiniInfoChip(label: 'GPS ±10m Precision'),
                   _MiniInfoChip(label: 'Auto-Blur Faces & Plates'),
                   _MiniInfoChip(label: 'Public EXIF Stripped'),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              InkWell(
+                onTap: () => context.go('/intake'),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.camera_alt_outlined,
+                          size: 24, color: AppColors.inkMuted),
+                      SizedBox(height: 6),
+                      Text(
+                        'Tap to Capture or Upload Evidence',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        'JPEG, WebP, PNG • Auto-Clustered <=150m',
+                        style: TextStyle(
+                            fontSize: 10.5, color: AppColors.inkMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -507,10 +538,10 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                  icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                   label: const Text(
                     'Snap & Classify Waste',
                     style: TextStyle(fontWeight: FontWeight.w700),
@@ -523,11 +554,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         const SizedBox(height: 16),
         Row(
           children: [
-            const Icon(Icons.bolt_rounded, size: 18, color: AppColors.forest),
-            const SizedBox(width: 6),
             const Expanded(
               child: Text(
-                'Neighborhood Activity Feed',
+                '● Ward Live Incidents',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -535,25 +564,23 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Text(
-                'Sort: Urgency',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkSecondary,
+            TextButton(
+              onPressed: () => setState(() {
+                _focusWard = 'All Bengaluru';
+                _filter = MapFilter.all;
+              }),
+              child: Text(
+                'View All (${state.reports.length})',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.forest,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         ...filteredReports.take(4).map((r) {
           final isCleared = r.status == ReportStatus.verifiedCleared;
           final isOverdue = r.slaDeadline.isBefore(DateTime.now()) && !isCleared;
@@ -569,7 +596,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               },
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -583,63 +610,79 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                r.placeName,
-                                style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                '${r.wardName} • ${r.reportCount} Reports Merged',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.inkSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: isOverdue || r.isRecurring
-                                ? AppColors.dangerSoft
-                                : AppColors.emeraldMint.withValues(alpha: 0.4),
-                            borderRadius: BorderRadius.circular(20),
+                            color: isCleared
+                                ? AppColors.emeraldMint.withValues(alpha: 0.45)
+                                : (isOverdue || r.isRecurring
+                                    ? AppColors.dangerSoft
+                                    : AppColors.surfaceMuted),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            isOverdue
-                                ? '• Repeat Blackspot'
-                                : (isCleared
-                                    ? 'Verified Cleared ✓'
-                                    : r.wasteType),
+                            isCleared
+                                ? '● Verified Restored'
+                                : (isOverdue
+                                    ? '● Overdue SLA'
+                                    : '● Verification Queue'),
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: isOverdue || r.isRecurring
-                                  ? AppColors.danger
-                                  : AppColors.forest,
+                              color: isCleared
+                                  ? AppColors.forest
+                                  : (isOverdue || r.isRecurring
+                                      ? AppColors.danger
+                                      : AppColors.inkSecondary),
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            r.wardName,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.inkMuted,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${r.reportCount}x',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      r.placeName,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${r.wasteType} • ${r.severity} Severity • ${(r.aiConfidence * 100).round()}% AI Match',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppColors.inkSecondary,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
                         Text(
                           isCleared
-                              ? 'Cleared in ${r.clearanceDurationLabel}'
+                              ? 'Verified by ${r.verifyVotes} Citizens'
                               : GeoUtils.formatSlaRemaining(r.slaDeadline),
                           style: TextStyle(
                             fontSize: 11.5,
@@ -650,7 +693,19 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                           ),
                         ),
                         const Spacer(),
-                        if (!isCleared && r.isRecurring)
+                        if (isCleared)
+                          TextButton(
+                            onPressed: () => context.go('/board'),
+                            child: const Text(
+                              'View Before/After Log →',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.forest,
+                              ),
+                            ),
+                          )
+                        else if (r.isRecurring)
                           FilledButton.icon(
                             onPressed: () async {
                               await ref
@@ -667,37 +722,36 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                               context.go('/drives');
                             },
                             style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.danger,
+                              backgroundColor: AppColors.forest,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            icon: const Icon(Icons.flash_on_rounded, size: 14),
+                            icon: const Icon(Icons.groups_outlined, size: 14),
                             label: const Text('Start Clean-Up Drive',
                                 style: TextStyle(fontSize: 11.5)),
                           )
-                        else if (!isCleared)
-                          FilledButton(
+                        else
+                          OutlinedButton(
                             onPressed: () async {
                               await showDialog<bool>(
                                 context: context,
                                 builder: (_) => VerifyProofModal(report: r),
                               );
                             },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.forest,
-                              foregroundColor: Colors.white,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.ink,
+                              side: const BorderSide(color: AppColors.border),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 8),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                  horizontal: 12, vertical: 8),
                             ),
-                            child: const Text('Verify Fix',
-                                style: TextStyle(fontSize: 11.5)),
+                            child: Text(
+                              'Confirm On-Site (${r.verifyVotes}/3)',
+                              style: const TextStyle(fontSize: 11.5),
+                            ),
                           ),
                       ],
                     ),
@@ -707,26 +761,65 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
             ),
           );
         }),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.forest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.verified_user_outlined, color: Colors.white, size: 22),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Decentralized Civic Care',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Every report verified by nearby residents with Before/After proof.',
+                      style: TextStyle(fontSize: 11, color: Color(0xFFD1FAE5)),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '100%',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
+          constraints: const BoxConstraints(maxWidth: 1220),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              telemetryBar,
-              const SizedBox(height: 14),
               filterStrip,
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               if (isWide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 6, child: mapCard),
+                    Expanded(flex: 7, child: mapCard),
                     const SizedBox(width: 20),
                     Expanded(flex: 5, child: rightColumn),
                   ],
@@ -735,13 +828,384 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 Column(
                   children: [
                     mapCard,
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     rightColumn,
                   ],
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WardHealthStrip extends StatelessWidget {
+  final List<WardStats> wardStats;
+  final void Function(WardStats) onSelectWard;
+  final VoidCallback onOpenWardIndex;
+
+  const _WardHealthStrip({
+    required this.wardStats,
+    required this.onSelectWard,
+    required this.onOpenWardIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final top3 = wardStats.take(3).toList();
+    if (top3.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 560;
+        final cards = top3.map((w) {
+          final healthy = w.civicScore >= 70;
+          return InkWell(
+            onTap: () => onSelectWard(w),
+            onDoubleTap: onOpenWardIndex,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          w.wardName.toUpperCase(),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.inkMuted,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: healthy
+                              ? AppColors.emeraldMint.withValues(alpha: 0.45)
+                              : AppColors.dangerSoft,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${w.clearanceRate.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: healthy ? AppColors.forest : AppColors.danger,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '${w.civicScore}.0',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        '/ 100 Index',
+                        style:
+                            TextStyle(fontSize: 10.5, color: AppColors.inkMuted),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: w.civicScore / 100.0,
+                      minHeight: 5,
+                      backgroundColor: AppColors.surfaceMuted,
+                      color: healthy ? AppColors.forest : AppColors.danger,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: onOpenWardIndex,
+                    child: Text(
+                      '${w.clearedSpots} Cleared · Open Ward Ledger →',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.emeraldDark,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList();
+
+        if (wide) {
+          return Row(
+            children: cards
+                .map((c) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: c,
+                      ),
+                    ))
+                .toList(),
+          );
+        }
+        return Column(
+          children: cards
+              .map((c) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: c,
+                  ))
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _MobileSpotDetailCard extends StatelessWidget {
+  final WasteReport report;
+  final VoidCallback onVerify;
+  final VoidCallback onStartDrive;
+
+  const _MobileSpotDetailCard({
+    required this.report,
+    required this.onVerify,
+    required this.onStartDrive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cleared = report.status == ReportStatus.verifiedCleared;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  report.placeName,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cleared ? AppColors.emeraldSoft : AppColors.warningSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  cleared ? '● Verified Cleared' : '● Active Blackspot',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: cleared ? AppColors.forest : AppColors.warning,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${report.wardName} • ${report.reportCount} Reports Merged',
+            style: const TextStyle(fontSize: 12, color: AppColors.inkMuted),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniAuditTile(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'AI Volume & Type',
+                  value: report.wasteType,
+                  sub: '${(report.aiConfidence * 100).round()}% Conf.',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniAuditTile(
+                  icon: Icons.schedule_rounded,
+                  title: 'Citizen SLA',
+                  value: cleared
+                      ? report.clearanceDurationLabel
+                      : GeoUtils.formatSlaRemaining(report.slaDeadline),
+                  sub: '150m cluster',
+                ),
+              ),
+            ],
+          ),
+          if (!cleared) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: onVerify,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.forest,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Verify Fix →',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.outlined(
+                  onPressed: onStartDrive,
+                  tooltip: 'Start Clean-Up Drive',
+                  icon: const Icon(Icons.group_add_outlined),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileVerifiedProofCard extends StatelessWidget {
+  final WasteReport report;
+  final VoidCallback onViewBoard;
+
+  const _MobileVerifiedProofCard({
+    required this.report,
+    required this.onViewBoard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.verified_outlined,
+                  size: 18, color: AppColors.forest),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Community Verified Proof',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onViewBoard,
+                child: const Text(
+                  'View Board →',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.forest,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '${report.placeName} • ${report.verifyVotes} Neighbours confirmed clearance',
+            style: const TextStyle(fontSize: 12, color: AppColors.inkSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniAuditTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final String sub;
+
+  const _MiniAuditTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 13, color: AppColors.forest),
+              const SizedBox(width: 4),
+              Text(title,
+                  style:
+                      const TextStyle(fontSize: 10, color: AppColors.inkMuted)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink)),
+          Text(sub,
+              style: const TextStyle(
+                  fontSize: 10.5,
+                  color: AppColors.emeraldDark,
+                  fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
@@ -830,22 +1294,31 @@ class _FloatingSpotCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.emeraldMint.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '● AI: ${report.wasteType} • ${report.severity} Severity • ${(report.aiConfidence * 100).round()}%',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: AppColors.forest,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  report.isRecurring
+                      ? '● REPEAT CHRONIC BLACKSPOT'
+                      : '● ACTIVE CLUSTER',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: report.isRecurring ? AppColors.danger : AppColors.forest,
+                  ),
+                ),
               ),
-            ),
+              Text(
+                '${(report.aiConfidence * 100).round()}% Match',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.emeraldDark,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             report.placeName,
             style: const TextStyle(
@@ -856,30 +1329,45 @@ class _FloatingSpotCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${report.wardName} • ${report.reportCount} Merged • ${cleared ? "Verified Cleared" : GeoUtils.formatSlaRemaining(report.slaDeadline)}',
+            '${report.wardName} • ${report.wasteType} • ${report.reportCount} Merged',
             style: const TextStyle(
               fontSize: 11.5,
               color: AppColors.inkSecondary,
             ),
           ),
-          if (!cleared) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onVerify,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.forest,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  cleared
+                      ? 'Verified Cleared ✓'
+                      : GeoUtils.formatSlaRemaining(report.slaDeadline),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: cleared ? AppColors.emeraldDark : AppColors.danger,
                   ),
                 ),
-                child: const Text('Verify Fix →',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            ),
-          ],
+              if (!cleared)
+                FilledButton(
+                  onPressed: onVerify,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.forest,
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Verify Fix →',
+                      style:
+                          TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ),
         ],
       ),
     );

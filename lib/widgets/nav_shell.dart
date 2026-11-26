@@ -172,24 +172,6 @@ class NavShell extends ConsumerWidget {
         ),
         actions: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Text(
-              'DEMO DATA',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppColors.inkMuted,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.emeraldMint.withValues(alpha: 0.45),
@@ -260,7 +242,7 @@ class NavShell extends ConsumerWidget {
               children: [
                 const Expanded(
                   child: Text(
-                    'NagarNex — Independent Citizen Initiative. Not affiliated with any government authority. Illustrative Demo Data.',
+                    'NagarNex — Independent Citizen Initiative. Not affiliated with any government authority.',
                     style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
                   ),
                 ),

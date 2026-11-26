@@ -140,7 +140,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('NagarNex'), findsOneWidget);
-    expect(find.text('DEMO DATA'), findsOneWidget);
     expect(find.text('Launch App'), findsOneWidget);
 
     // Navigate to Roadside Board from Landing Page
