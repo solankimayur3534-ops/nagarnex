@@ -183,6 +183,64 @@ class PassportDrawer extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
               const Text(
+                'Governance & Admin Hierarchy',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkSecondary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: appState.adminRole,
+                      isDense: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Active Management Level',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'Citizen',
+                            child: Text('Citizen (Report & Verify)')),
+                        DropdownMenuItem(
+                            value: 'Municipal Ward Admin',
+                            child: Text('Municipal Ward Admin (BBMP / ULB)')),
+                        DropdownMenuItem(
+                            value: 'National Civic Admin',
+                            child: Text('National Civic Admin (Super Policy)')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          ref.read(nagarNexProvider.notifier).setAdminRole(v);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '• Municipal Admin: Ward SLA & Before/After clearance\n• National Admin: Global Camera/GPS rules via Supabase',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.inkMuted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
                 'Admin Policy Controls (Supabase)',
                 style: TextStyle(
                   fontSize: 12,

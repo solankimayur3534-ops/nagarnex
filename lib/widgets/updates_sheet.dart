@@ -6,21 +6,49 @@ import '../core/geo_utils.dart';
 import '../models/waste_report.dart';
 import '../services/app_state.dart';
 
-class UpdatesSheet extends ConsumerWidget {
+class UpdatesSheet extends ConsumerStatefulWidget {
   const UpdatesSheet({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UpdatesSheet> createState() => _UpdatesSheetState();
+}
+
+class _UpdatesSheetState extends ConsumerState<UpdatesSheet> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  bool _showAllQueries = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(nagarNexProvider);
-    final tracked = state.reports
-        .where((r) => state.myReportIds.contains(r.id))
-        .toList();
+    final query = _searchCtrl.text.trim().toLowerCase();
+
+    final baseList = _showAllQueries
+        ? state.reports
+        : state.reports.where((r) => state.myReportIds.contains(r.id)).toList();
+
+    final filtered = query.isEmpty
+        ? baseList
+        : baseList.where((r) {
+            return r.placeName.toLowerCase().contains(query) ||
+                r.wardName.toLowerCase().contains(query) ||
+                r.id.toLowerCase().contains(query);
+          }).toList();
+
+    final solvedCount = baseList
+        .where((r) => r.status == ReportStatus.verifiedCleared)
+        .length;
 
     return Dialog(
       backgroundColor: AppColors.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 660),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -36,18 +64,18 @@ class UpdatesSheet extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
-                      Icons.notifications_active_outlined,
+                      Icons.task_alt_rounded,
                       color: AppColors.forest,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'My Registered Problem Updates',
+                        const Text(
+                          'Query Status & Problem Updates',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
@@ -55,8 +83,8 @@ class UpdatesSheet extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          'Live status, SLA alerts & Before/After verification progress',
-                          style: TextStyle(
+                          'Solved: $solvedCount / ${baseList.length} • Live SLA & Before/After proof',
+                          style: const TextStyle(
                             fontSize: 11.5,
                             color: AppColors.inkMuted,
                           ),
@@ -70,10 +98,53 @@ class UpdatesSheet extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: Text('My Queries (${state.myReportIds.length})'),
+                    selected: !_showAllQueries,
+                    selectedColor: AppColors.forest,
+                    labelStyle: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: !_showAllQueries ? Colors.white : AppColors.ink,
+                    ),
+                    onSelected: (_) => setState(() => _showAllQueries = false),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text('All City Queries (${state.reports.length})'),
+                    selected: _showAllQueries,
+                    selectedColor: AppColors.forest,
+                    labelStyle: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: _showAllQueries ? Colors.white : AppColors.ink,
+                    ),
+                    onSelected: (_) => setState(() => _showAllQueries = true),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _searchCtrl,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Search by place, ward, or report ID...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               const Divider(height: 1, color: AppColors.border),
               const SizedBox(height: 12),
-              if (tracked.isEmpty)
+              if (filtered.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 28),
                   child: Center(
@@ -82,9 +153,11 @@ class UpdatesSheet extends ConsumerWidget {
                         const Icon(Icons.inbox_outlined,
                             size: 36, color: AppColors.inkMuted),
                         const SizedBox(height: 8),
-                        const Text(
-                          'No tracked reports yet.',
-                          style: TextStyle(
+                        Text(
+                          _showAllQueries
+                              ? 'No matching queries found.'
+                              : 'No tracked queries yet.',
+                          style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: AppColors.ink,
@@ -92,7 +165,7 @@ class UpdatesSheet extends ConsumerWidget {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Submit a waste photo or tap the bell icon on any map pin to get live updates.',
+                          'Submit a waste photo or tap "All City Queries" above to track any spot.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 12, color: AppColors.inkMuted),
@@ -118,19 +191,22 @@ class UpdatesSheet extends ConsumerWidget {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    itemCount: tracked.length,
+                    itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (ctx, i) {
-                      final r = tracked[i];
+                      final r = filtered[i];
                       final isCleared =
                           r.status == ReportStatus.verifiedCleared;
                       final isPending =
                           r.status == ReportStatus.pendingVerification;
+                      final step = isCleared ? 3 : (isPending ? 2 : 1);
 
                       return Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.background,
+                          color: isCleared
+                              ? AppColors.emeraldSoft.withValues(alpha: 0.35)
+                              : AppColors.background,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: isCleared
@@ -158,23 +234,26 @@ class UpdatesSheet extends ConsumerWidget {
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: isCleared
-                                        ? AppColors.emeraldMint
-                                            .withValues(alpha: 0.45)
+                                        ? AppColors.emeraldSoft
                                         : (isPending
                                             ? AppColors.warningSoft
-                                            : AppColors.surfaceMuted),
+                                            : AppColors.dangerSoft),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    r.status.label,
+                                    isCleared
+                                        ? 'SOLVED ✓'
+                                        : (isPending
+                                            ? 'VERIFYING (${r.verifyVotes}/3)'
+                                            : 'OPEN · NOT SOLVED'),
                                     style: TextStyle(
                                       fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w800,
                                       color: isCleared
                                           ? AppColors.forest
                                           : (isPending
                                               ? AppColors.warning
-                                              : AppColors.inkSecondary),
+                                              : AppColors.danger),
                                     ),
                                   ),
                                 ),
@@ -189,38 +268,41 @@ class UpdatesSheet extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
+                            // 3-Step Visual Progress Bar
                             Row(
                               children: [
-                                Text(
-                                  isCleared
-                                      ? 'Cleared in ${r.clearanceDurationLabel} ✓'
-                                      : GeoUtils.formatSlaRemaining(
-                                          r.slaDeadline),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: isCleared
-                                        ? AppColors.emeraldDark
-                                        : AppColors.danger,
-                                  ),
-                                ),
-                                const Spacer(),
-                                TextButton(
+                                _StepPill(label: '1. Reported', done: step >= 1),
+                                const SizedBox(width: 4),
+                                _StepPill(label: '2. Review', done: step >= 2),
+                                const SizedBox(width: 4),
+                                _StepPill(label: '3. Solved ✓', done: step >= 3),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                TextButton.icon(
                                   onPressed: () {
                                     Navigator.of(context).pop();
-                                    context.go(isCleared ? '/board' : '/map');
+                                    context.go('/map');
                                   },
-                                  child: Text(
-                                    isCleared
-                                        ? 'View Proof →'
-                                        : 'Track on Map →',
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.forest,
-                                    ),
-                                  ),
+                                  icon: const Icon(Icons.map_outlined, size: 15),
+                                  label: const Text('Track on Map',
+                                      style: TextStyle(fontSize: 12)),
                                 ),
+                                if (isCleared)
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      context.go('/board');
+                                    },
+                                    icon: const Icon(Icons.verified_outlined,
+                                        size: 15),
+                                    label: const Text('View Solved Proof',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
                               ],
                             ),
                           ],
@@ -230,6 +312,35 @@ class UpdatesSheet extends ConsumerWidget {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StepPill extends StatelessWidget {
+  final String label;
+  final bool done;
+
+  const _StepPill({required this.label, required this.done});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: done ? AppColors.forest : AppColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: done ? Colors.white : AppColors.inkMuted,
           ),
         ),
       ),

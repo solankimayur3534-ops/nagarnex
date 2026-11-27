@@ -30,6 +30,7 @@ class NagarNexState {
   final bool gpsPermissionGranted;
   final bool cameraPermissionGranted;
   final bool permissionGateRequired;
+  final String adminRole;
   final bool isLoading;
 
   const NagarNexState({
@@ -47,6 +48,7 @@ class NagarNexState {
     this.gpsPermissionGranted = false,
     this.cameraPermissionGranted = false,
     this.permissionGateRequired = false,
+    this.adminRole = 'Citizen',
     this.isLoading = false,
   });
 
@@ -65,6 +67,7 @@ class NagarNexState {
     bool? gpsPermissionGranted,
     bool? cameraPermissionGranted,
     bool? permissionGateRequired,
+    String? adminRole,
     bool? isLoading,
   }) {
     return NagarNexState(
@@ -84,6 +87,7 @@ class NagarNexState {
           cameraPermissionGranted ?? this.cameraPermissionGranted,
       permissionGateRequired:
           permissionGateRequired ?? this.permissionGateRequired,
+      adminRole: adminRole ?? this.adminRole,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -257,6 +261,10 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       currentCity: city,
       currentUserLocation: location ?? state.currentUserLocation,
     );
+  }
+
+  void setAdminRole(String role) {
+    state = state.copyWith(adminRole: role);
   }
 
   Future<void> setAdminEnforcement({

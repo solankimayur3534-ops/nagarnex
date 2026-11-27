@@ -323,34 +323,62 @@ class _NavShellState extends ConsumerState<NavShell> {
           SizedBox(width: isMobile ? 4 : 8),
         ],
       ),
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Expanded(child: child),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: AppColors.border)),
+          Image.asset(
+            'assets/images/app_bg.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: 0.72),
+                  AppColors.background.withValues(alpha: 0.80),
+                  Colors.white.withValues(alpha: 0.84),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const AnimatedLogo(size: 24),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'NagarNex — Independent Citizen Initiative. Not affiliated with any government authority.',
-                    style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
-                  ),
+          ),
+          Column(
+            children: [
+              Expanded(child: child),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.90),
+                  border:
+                      const Border(top: BorderSide(color: AppColors.border)),
                 ),
-                if (isDesktop)
-                  const Text(
-                    'Privacy & EXIF Policy  •  Open Civic Data (2026)',
-                    style: TextStyle(fontSize: 11, color: AppColors.inkMuted),
-                  ),
-              ],
-            ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const AnimatedLogo(size: 24),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'NagarNex • Role: ${appState.adminRole} • Managed by Municipal & National Civic Grid',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.inkMuted),
+                      ),
+                    ),
+                    if (isDesktop)
+                      const Text(
+                        'Privacy & EXIF Policy  •  Open Civic Data (2026)',
+                        style:
+                            TextStyle(fontSize: 11, color: AppColors.inkMuted),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
