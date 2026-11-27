@@ -9,6 +9,7 @@ import '../models/waste_report.dart';
 import '../services/app_state.dart';
 import '../widgets/animated_logo.dart';
 import '../widgets/judge_tour.dart';
+import '../widgets/permission_gate_dialog.dart';
 
 class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
@@ -20,6 +21,24 @@ class LandingScreen extends ConsumerStatefulWidget {
 class _LandingScreenState extends ConsumerState<LandingScreen> {
   int _tickerIndex = 0;
   Timer? _tickerTimer;
+  bool _gateShowing = false;
+
+  void _maybeShowPermissionGate(bool required) {
+    if (!required || _gateShowing || !mounted) return;
+    _gateShowing = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _gateShowing = false;
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const PermissionGateDialog(),
+      );
+      _gateShowing = false;
+    });
+  }
 
   @override
   void initState() {
@@ -47,7 +66,14 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(
+      nagarNexProvider.select((s) => s.permissionGateRequired),
+      (_, next) => _maybeShowPermissionGate(next),
+    );
     final state = ref.watch(nagarNexProvider);
+    if (state.permissionGateRequired) {
+      _maybeShowPermissionGate(true);
+    }
     final clearedCount = state.reports
         .where((r) => r.status == ReportStatus.verifiedCleared)
         .length;
@@ -121,9 +147,9 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                                 color: Colors.white.withValues(alpha: 0.2),
                               ),
                             ),
-                            child: const Text(
-                              'Bengaluru',
-                              style: TextStyle(
+                            child: Text(
+                              state.currentCity,
+                              style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.emeraldMint,

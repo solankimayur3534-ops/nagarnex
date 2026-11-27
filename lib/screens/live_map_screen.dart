@@ -26,9 +26,37 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   bool _showCenters = true;
   bool _satelliteMode = false;
   bool _tilt3d = false;
-  String _focusWard = 'All Bengaluru';
+  bool _fullScreenMap = false;
+  bool _locating = false;
+  String _focusWard = 'All Locations';
   String? _selectedReportId;
   String? _selectedCenterId;
+
+  Future<void> _centerOnMyLocation() async {
+    setState(() => _locating = true);
+    final res = await ref
+        .read(nagarNexProvider.notifier)
+        .detectAndUpdateLocation(requestIfNeeded: true);
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (res.point != null) {
+      _mapController.move(res.point!, 15.2);
+      final city = res.resolved?.city ?? ref.read(nagarNexProvider).currentCity;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.forest,
+          content: Text(
+              'Centered on your live GPS in $city (${res.point!.latitude.toStringAsFixed(4)}, ${res.point!.longitude.toStringAsFixed(4)})'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enable browser GPS permission to show your exact location.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +65,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     final wardStats = state.wardStats;
 
     final filteredReports = state.reports.where((r) {
-      if (_focusWard != 'All Bengaluru' && r.wardName != _focusWard) {
+      if (_focusWard != 'All Locations' && r.wardName != _focusWard) {
         return false;
       }
       switch (_filter) {
@@ -75,7 +103,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
         state.reports.fold<int>(0, (sum, r) => sum + r.reportCount);
 
     final wardOptions = <String>[
-      'All Bengaluru',
+      'All Locations',
       ...state.reports.map((r) => r.wardName).toSet(),
     ];
 
@@ -130,11 +158,16 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
       ),
     );
 
+    final screenH = MediaQuery.sizeOf(context).height;
+    final mapHeight = _fullScreenMap
+        ? (screenH - 140).clamp(380.0, 900.0)
+        : (isWide ? 470.0 : 310.0);
+
     final mapCard = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          height: isWide ? 470 : 310,
+          height: mapHeight,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.border),
@@ -159,9 +192,10 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                     : Matrix4.identity(),
                 child: FlutterMap(
                   mapController: _mapController,
-                  options: const MapOptions(
-                    initialCenter: AppConstants.bengaluruCenter,
-                    initialZoom: 12.0,
+                  options: MapOptions(
+                    initialCenter:
+                        state.currentUserLocation ?? AppConstants.bengaluruCenter,
+                    initialZoom: state.currentUserLocation != null ? 13.5 : 12.0,
                   ),
                   children: [
                     TileLayer(
@@ -272,6 +306,35 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                             ),
                           );
                         }),
+                      if (state.currentUserLocation != null)
+                        Marker(
+                          point: state.currentUserLocation!,
+                          width: 36,
+                          height: 36,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.22),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade600,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2.5),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   ],
@@ -280,9 +343,24 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
               Positioned(
                 bottom: 14,
                 left: 14,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                right: isWide ? 350 : 14,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
+                    _PillFilter(
+                      label: _locating ? 'Locating...' : 'My Location',
+                      active: state.currentUserLocation != null,
+                      activeBg: Colors.blue.shade700,
+                      onTap: _centerOnMyLocation,
+                    ),
+                    _PillFilter(
+                      label: _fullScreenMap ? 'Exit Full Map' : 'Full Map',
+                      active: _fullScreenMap,
+                      activeBg: AppColors.ink,
+                      onTap: () =>
+                          setState(() => _fullScreenMap = !_fullScreenMap),
+                    ),
                     _PillFilter(
                       label: _satelliteMode ? 'Satellite ✓' : 'Satellite',
                       active: _satelliteMode,
@@ -290,7 +368,6 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       onTap: () =>
                           setState(() => _satelliteMode = !_satelliteMode),
                     ),
-                    const SizedBox(width: 6),
                     _PillFilter(
                       label: _tilt3d ? '3D View ✓' : '3D Camera',
                       active: _tilt3d,
@@ -338,7 +415,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                       child: DropdownButton<String>(
                         value: wardOptions.contains(_focusWard)
                             ? _focusWard
-                            : 'All Bengaluru',
+                            : 'All Locations',
                         isDense: true,
                         style: const TextStyle(
                           fontSize: 11.5,
@@ -354,9 +431,11 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                         onChanged: (val) {
                           if (val == null) return;
                           setState(() => _focusWard = val);
-                          if (val == 'All Bengaluru') {
+                          if (val == 'All Locations') {
                             _mapController.move(
-                                AppConstants.bengaluruCenter, 12.0);
+                                state.currentUserLocation ??
+                                    AppConstants.bengaluruCenter,
+                                12.0);
                           } else {
                             final match = state.reports
                                 .where((r) => r.wardName == val)
@@ -601,7 +680,7 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
             ),
             TextButton(
               onPressed: () => setState(() {
-                _focusWard = 'All Bengaluru';
+                _focusWard = 'All Locations';
                 _filter = MapFilter.all;
               }),
               child: Text(
@@ -875,7 +954,9 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
             children: [
               filterStrip,
               const SizedBox(height: 16),
-              if (isWide)
+              if (_fullScreenMap)
+                mapCard
+              else if (isWide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

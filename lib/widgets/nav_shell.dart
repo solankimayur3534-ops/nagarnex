@@ -6,6 +6,7 @@ import '../core/fullscreen_helper.dart';
 import '../services/app_state.dart';
 import 'animated_logo.dart';
 import 'passport_drawer.dart';
+import 'permission_gate_dialog.dart';
 import 'updates_sheet.dart';
 
 class NavItemSpec {
@@ -32,7 +33,7 @@ const List<NavItemSpec> kAppNavItems = [
       icon: Icons.qr_code_2_rounded),
 ];
 
-class NavShell extends ConsumerWidget {
+class NavShell extends ConsumerStatefulWidget {
   final String currentRoute;
   final Widget child;
 
@@ -43,11 +44,46 @@ class NavShell extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NavShell> createState() => _NavShellState();
+}
+
+class _NavShellState extends ConsumerState<NavShell> {
+  bool _gateShowing = false;
+
+  void _maybeShowPermissionGate(bool required) {
+    if (!required || _gateShowing || !mounted) return;
+    _gateShowing = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _gateShowing = false;
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const PermissionGateDialog(),
+      );
+      _gateShowing = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<bool>(
+      nagarNexProvider.select((s) => s.permissionGateRequired),
+      (_, next) => _maybeShowPermissionGate(next),
+    );
+    final appState = ref.watch(nagarNexProvider);
+    if (appState.permissionGateRequired) {
+      _maybeShowPermissionGate(true);
+    }
+
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 1024;
     final isMobile = width < 600;
-    final profile = ref.watch(nagarNexProvider).profile;
+    final profile = appState.profile;
+    final currentRoute = widget.currentRoute;
+    final child = widget.child;
 
     int selectedIndex =
         kAppNavItems.indexWhere((item) => item.route == currentRoute);
@@ -100,9 +136,9 @@ class NavShell extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: const Text(
-                          'Bengaluru',
-                          style: TextStyle(
+                        child: Text(
+                          appState.currentCity,
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.inkSecondary,

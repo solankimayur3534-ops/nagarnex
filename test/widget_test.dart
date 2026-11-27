@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:nagarnex/core/city_locator.dart';
 import 'package:nagarnex/core/geo_utils.dart';
 import 'package:nagarnex/main.dart';
 import 'package:nagarnex/models/waste_report.dart';
@@ -208,5 +209,15 @@ void main() {
     expect(CivicRank.fromPoints(2600).name, 'Legend');
     expect(CivicRank.pointsToNextRank(145), 105);
     expect(kJudgeTourSteps.length, 4);
+  });
+
+  test('CityLocator resolves Rajkot and Bengaluru dynamically', () async {
+    final blr = await CityLocator.resolveLocationDetails(
+        const LatLng(12.9718, 77.6412));
+    expect(blr.city, 'Bengaluru');
+
+    final rajkot = await CityLocator.resolveLocationDetails(
+        const LatLng(22.3039, 70.8022));
+    expect(rajkot.city, 'Rajkot');
   });
 }

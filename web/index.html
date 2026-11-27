@@ -142,6 +142,27 @@
         }
       } catch (_) {}
     };
+    window.nnCheckCameraPermission = async function () {
+      try {
+        if (navigator.permissions && navigator.permissions.query) {
+          var status = await navigator.permissions.query({ name: 'camera' });
+          return status.state === 'granted';
+        }
+        return false;
+      } catch (_) {
+        return false;
+      }
+    };
+    window.nnRequestCameraPermission = async function () {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+        var stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        return true;
+      } catch (_) {
+        return false;
+      }
+    };
     window.addEventListener('flutter-first-frame', function () {
       var s = document.getElementById('nn-splash');
       if (s) {

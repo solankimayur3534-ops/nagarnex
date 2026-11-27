@@ -1,11 +1,14 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../core/city_locator.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
+import '../core/permissions_helper.dart';
 import '../models/citizen_profile.dart';
 import '../models/collection_center.dart';
 import '../models/micro_drive.dart';
@@ -22,6 +25,11 @@ class NagarNexState {
   final int unreadUpdates;
   final bool enforceCameraOnly;
   final bool enforceGpsOnly;
+  final String currentCity;
+  final LatLng? currentUserLocation;
+  final bool gpsPermissionGranted;
+  final bool cameraPermissionGranted;
+  final bool permissionGateRequired;
   final bool isLoading;
 
   const NagarNexState({
@@ -34,6 +42,11 @@ class NagarNexState {
     this.unreadUpdates = 0,
     this.enforceCameraOnly = false,
     this.enforceGpsOnly = false,
+    this.currentCity = 'Bengaluru',
+    this.currentUserLocation,
+    this.gpsPermissionGranted = false,
+    this.cameraPermissionGranted = false,
+    this.permissionGateRequired = false,
     this.isLoading = false,
   });
 
@@ -47,6 +60,11 @@ class NagarNexState {
     int? unreadUpdates,
     bool? enforceCameraOnly,
     bool? enforceGpsOnly,
+    String? currentCity,
+    LatLng? currentUserLocation,
+    bool? gpsPermissionGranted,
+    bool? cameraPermissionGranted,
+    bool? permissionGateRequired,
     bool? isLoading,
   }) {
     return NagarNexState(
@@ -59,6 +77,13 @@ class NagarNexState {
       unreadUpdates: unreadUpdates ?? this.unreadUpdates,
       enforceCameraOnly: enforceCameraOnly ?? this.enforceCameraOnly,
       enforceGpsOnly: enforceGpsOnly ?? this.enforceGpsOnly,
+      currentCity: currentCity ?? this.currentCity,
+      currentUserLocation: currentUserLocation ?? this.currentUserLocation,
+      gpsPermissionGranted: gpsPermissionGranted ?? this.gpsPermissionGranted,
+      cameraPermissionGranted:
+          cameraPermissionGranted ?? this.cameraPermissionGranted,
+      permissionGateRequired:
+          permissionGateRequired ?? this.permissionGateRequired,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -129,6 +154,109 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     );
 
     _subscribeRealtimeUpdates();
+    await refreshPermissionsAndLocation(
+      autoRequestIfEnforced: true,
+    );
+  }
+
+  /// Checks live browser/device GPS & Camera permissions (never cached across
+  /// page refreshes). If Supabase enforces GPS or Camera and it is not
+  /// granted, sets `permissionGateRequired = true` so the popup shows.
+  Future<void> refreshPermissionsAndLocation({
+    bool autoRequestIfEnforced = false,
+  }) async {
+    bool gpsGranted = false;
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (autoRequestIfEnforced &&
+          state.enforceGpsOnly &&
+          perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      gpsGranted = perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse;
+    } catch (_) {
+      gpsGranted = false;
+    }
+
+    bool camGranted = false;
+    try {
+      camGranted = await isCameraPermissionGranted();
+    } catch (_) {
+      camGranted = false;
+    }
+
+    final gateRequired = (state.enforceGpsOnly && !gpsGranted) ||
+        (state.enforceCameraOnly && !camGranted);
+
+    state = state.copyWith(
+      gpsPermissionGranted: gpsGranted,
+      cameraPermissionGranted: camGranted,
+      permissionGateRequired: gateRequired,
+    );
+
+    if (gpsGranted) {
+      await detectAndUpdateLocation(requestIfNeeded: false);
+    }
+  }
+
+  /// Requests GPS permission (if needed), locks exact coordinates, and
+  /// updates [currentCity] dynamically via reverse geocoding.
+  Future<({LatLng? point, ResolvedCityLocation? resolved})>
+      detectAndUpdateLocation({bool requestIfNeeded = true}) async {
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (requestIfNeeded && perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      final ok = perm == LocationPermission.always ||
+          perm == LocationPermission.whileInUse;
+      if (!ok) {
+        state = state.copyWith(
+          gpsPermissionGranted: false,
+          permissionGateRequired:
+              state.enforceGpsOnly || (state.enforceCameraOnly && !state.cameraPermissionGranted),
+        );
+        return (point: null, resolved: null);
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
+      );
+      final userPoint = LatLng(pos.latitude, pos.longitude);
+      final resolved = await CityLocator.resolveLocationDetails(userPoint);
+      state = state.copyWith(
+        currentUserLocation: userPoint,
+        currentCity: resolved.city,
+        gpsPermissionGranted: true,
+        permissionGateRequired:
+            state.enforceCameraOnly && !state.cameraPermissionGranted,
+      );
+      return (point: userPoint, resolved: resolved);
+    } catch (_) {
+      return (point: null, resolved: null);
+    }
+  }
+
+  Future<bool> requestCameraAccess() async {
+    final ok = await requestCameraPermission();
+    state = state.copyWith(
+      cameraPermissionGranted: ok,
+      permissionGateRequired:
+          (state.enforceGpsOnly && !state.gpsPermissionGranted) ||
+              (state.enforceCameraOnly && !ok),
+    );
+    return ok;
+  }
+
+  void setCityAndLocation({required String city, LatLng? location}) {
+    state = state.copyWith(
+      currentCity: city,
+      currentUserLocation: location ?? state.currentUserLocation,
+    );
   }
 
   Future<void> setAdminEnforcement({
@@ -145,6 +273,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       enforceCameraOnly: cam,
       enforceGpsOnly: gps,
     );
+    await refreshPermissionsAndLocation(autoRequestIfEnforced: false);
   }
 
   void _subscribeRealtimeUpdates() {

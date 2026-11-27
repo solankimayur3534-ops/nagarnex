@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import '../core/city_locator.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
 import '../services/ai_vision_service.dart';
@@ -49,6 +49,28 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   final TextEditingController _placeController = TextEditingController(
     text: AppConstants.bengaluruPresets[0]['place'].toString(),
   );
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final s = ref.read(nagarNexProvider);
+      if (s.currentUserLocation != null) {
+        final loc = s.currentUserLocation!;
+        final resolved = await CityLocator.resolveLocationDetails(loc);
+        if (!mounted) return;
+        setState(() {
+          _lat = loc.latitude;
+          _lng = loc.longitude;
+          _liveDevicePoint = loc;
+          _hasLiveGps = true;
+          _wardName = resolved.wardLabel;
+          _placeController.text = resolved.locality;
+        });
+        _intakeMapCtrl.move(loc, 14.5);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -155,46 +177,58 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     _intakeMapCtrl.move(LatLng(lat, lng), 14.5);
   }
 
-  void _pickFromMap(LatLng point) {
-    int nearestIdx = 0;
-    double minDist = double.infinity;
-    for (int i = 0; i < AppConstants.bengaluruPresets.length; i++) {
-      final p = AppConstants.bengaluruPresets[i];
-      final d = GeoUtils.distanceMeters(
-        point,
-        LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
-      );
-      if (d < minDist) {
-        minDist = d;
-        nearestIdx = i;
+  Future<void> _pickFromMap(LatLng point) async {
+    setState(() {
+      _lat = point.latitude;
+      _lng = point.longitude;
+    });
+    final resolved = await CityLocator.resolveLocationDetails(point);
+    if (!mounted) return;
+    int nearestIdx = -1;
+    if (resolved.city == 'Bengaluru') {
+      double minDist = double.infinity;
+      for (int i = 0; i < AppConstants.bengaluruPresets.length; i++) {
+        final p = AppConstants.bengaluruPresets[i];
+        final d = GeoUtils.distanceMeters(
+          point,
+          LatLng((p['lat'] as num).toDouble(), (p['lng'] as num).toDouble()),
+        );
+        if (d < minDist) {
+          minDist = d;
+          nearestIdx = i;
+        }
       }
     }
     setState(() {
       _presetIndex = nearestIdx;
-      _wardName = AppConstants.bengaluruPresets[nearestIdx]['ward'].toString();
-      _lat = point.latitude;
-      _lng = point.longitude;
+      _wardName = resolved.wardLabel;
+      if (resolved.locality.isNotEmpty) {
+        _placeController.text = resolved.locality;
+      }
     });
+    ref
+        .read(nagarNexProvider.notifier)
+        .setCityAndLocation(city: resolved.city);
   }
 
   Future<void> _captureGps() async {
-    try {
-      final permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Browser GPS denied — tap any 1-click Bengaluru ward chip below.'),
-          ),
-        );
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition();
-      final userPoint = LatLng(pos.latitude, pos.longitude);
-      // Find nearest Bengaluru ward automatically
-      int nearestIdx = 0;
+    final res = await ref
+        .read(nagarNexProvider.notifier)
+        .detectAndUpdateLocation(requestIfNeeded: true);
+    if (!mounted) return;
+    if (res.point == null || res.resolved == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Browser GPS denied — tap any ward chip or tap on the map.'),
+        ),
+      );
+      return;
+    }
+    final userPoint = res.point!;
+    final resolved = res.resolved!;
+    int nearestIdx = -1;
+    if (resolved.city == 'Bengaluru') {
       double minDist = double.infinity;
       for (int i = 0; i < AppConstants.bengaluruPresets.length; i++) {
         final p = AppConstants.bengaluruPresets[i];
@@ -207,32 +241,24 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
           nearestIdx = i;
         }
       }
-      if (!mounted) return;
-      setState(() {
-        _presetIndex = nearestIdx;
-        _wardName =
-            AppConstants.bengaluruPresets[nearestIdx]['ward'].toString();
-        _lat = pos.latitude;
-        _lng = pos.longitude;
-        _liveDevicePoint = userPoint;
-        _hasLiveGps = true;
-      });
-      _intakeMapCtrl.move(userPoint, 15.0);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppColors.forest,
-          content: Text('Location locked: $_wardName (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})'),
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Using selected Bengaluru ward coordinates for desktop.'),
-        ),
-      );
     }
+    setState(() {
+      _presetIndex = nearestIdx;
+      _wardName = resolved.wardLabel;
+      _placeController.text = resolved.locality;
+      _lat = userPoint.latitude;
+      _lng = userPoint.longitude;
+      _liveDevicePoint = userPoint;
+      _hasLiveGps = true;
+    });
+    _intakeMapCtrl.move(userPoint, 15.0);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.forest,
+        content: Text(
+            'Location locked: ${resolved.city} · $_wardName (${userPoint.latitude.toStringAsFixed(4)}, ${userPoint.longitude.toStringAsFixed(4)})'),
+      ),
+    );
   }
 
   Future<void> _submitReport() async {
@@ -775,6 +801,32 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                             ),
                             MarkerLayer(
                               markers: [
+                                if (_liveDevicePoint != null ||
+                                    appState.currentUserLocation != null)
+                                  Marker(
+                                    point: _liveDevicePoint ??
+                                        appState.currentUserLocation!,
+                                    width: 30,
+                                    height: 30,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.blue.withValues(alpha: 0.22),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        width: 14,
+                                        height: 14,
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade600,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: Colors.white, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 Marker(
                                   point: LatLng(_lat, _lng),
                                   width: 40,
@@ -843,6 +895,74 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                 fontWeight: FontWeight.w700,
                               ),
                               onSelected: (v) => setState(() => _tilt3d = v),
+                            ),
+                            const SizedBox(width: 6),
+                            IconButton.filled(
+                              onPressed: () {
+                                showDialog<void>(
+                                  context: context,
+                                  builder: (ctx) => Dialog.fullscreen(
+                                    child: Scaffold(
+                                      appBar: AppBar(
+                                        title: Text(
+                                            'Pick Spot (${appState.currentCity})'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(),
+                                            child: const Text('Done'),
+                                          ),
+                                        ],
+                                      ),
+                                      body: FlutterMap(
+                                        options: MapOptions(
+                                          initialCenter: LatLng(_lat, _lng),
+                                          initialZoom: 15.0,
+                                          onTap: enforceGpsOnly
+                                              ? null
+                                              : (_, pt) {
+                                                  _pickFromMap(pt);
+                                                  _intakeMapCtrl.move(pt, 15.0);
+                                                  Navigator.of(ctx).pop();
+                                                },
+                                        ),
+                                        children: [
+                                          TileLayer(
+                                            urlTemplate: _satelliteMode
+                                                ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                                                : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                            userAgentPackageName:
+                                                'com.nagarnex.app',
+                                          ),
+                                          MarkerLayer(
+                                            markers: [
+                                              Marker(
+                                                point: LatLng(_lat, _lng),
+                                                width: 44,
+                                                height: 44,
+                                                child: const Icon(
+                                                  Icons.location_on_rounded,
+                                                  color: AppColors.danger,
+                                                  size: 40,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              tooltip: 'Full Map View',
+                              style: IconButton.styleFrom(
+                                backgroundColor: AppColors.ink,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.all(6),
+                                minimumSize: const Size(32, 32),
+                              ),
+                              icon: const Icon(Icons.fullscreen_rounded,
+                                  size: 18),
                             ),
                           ],
                         ),
