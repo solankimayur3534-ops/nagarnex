@@ -41,13 +41,13 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: 'Image too large; compress below 1.5MB.' });
   }
 
-  const geminiKey = process.env.GEMINI_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
 
   const prompt =
     mode === 'verify'
       ? 'Compare the street waste Before and After photo(s). Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
-      : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is unrelated (e.g. landscape, mountains, forest, selfie, indoor, meme, clean road), set "is_waste": false and give a short "rejection_reason". Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
+      : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is unrelated (e.g. landscape, poster, meme, screenshot, selfie, clean road), set "is_waste": false and give a short "rejection_reason". Always include a crisp 1-line "summary" describing what is actually visible in the image. Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "summary" (string, max 18 words describing the image), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
 
   const geminiParts = [
     { text: prompt },
@@ -76,6 +76,11 @@ export default async function handler(req, res) {
       );
       dailyCount += 1;
       const data = await r.json();
+      if (!r.ok) {
+        return res.status(r.status).json({
+          error: data?.error?.message || `Gemini API error (${r.status})`,
+        });
+      }
       const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) return res.status(200).json(JSON.parse(text));
     }

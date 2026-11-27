@@ -7,23 +7,29 @@ import '../core/constants.dart';
 class WasteClassificationResult {
   final bool isWaste;
   final String rejectionReason;
+  final String summary;
   final String wasteType;
   final String severity;
   final double confidence;
   final bool containsFacesOrPlates;
   final bool usedLiveAi;
   final String providerLabel;
+  final String? errorMessage;
 
   const WasteClassificationResult({
     this.isWaste = true,
     this.rejectionReason = '',
+    this.summary = '',
     required this.wasteType,
     required this.severity,
     required this.confidence,
     required this.containsFacesOrPlates,
     required this.usedLiveAi,
-    this.providerLabel = 'Offline Demo',
+    this.providerLabel = 'Live AI',
+    this.errorMessage,
   });
+
+  bool get hasError => errorMessage != null;
 }
 
 class BeforeAfterVerificationResult {
@@ -91,6 +97,7 @@ class AiVisionService {
     final cached = _classifyCache[cacheKey];
     if (cached != null) return cached;
 
+    String proxyError = 'Live AI service unavailable.';
     try {
       final proxyUri = Uri.parse(backendProxyUrl);
       final proxyRes = await http
@@ -102,14 +109,22 @@ class AiVisionService {
               'imageBase64': base64Encode(imageBytes),
             }),
           )
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 15));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
-        final res = _parseResult(parsed, 'Secure Backend AI');
+        final res = _parseResult(parsed, 'Gemini Vision AI');
         _classifyCache[cacheKey] = res;
         return res;
       }
-    } catch (_) {}
+      try {
+        final errBody = jsonDecode(proxyRes.body) as Map<String, dynamic>;
+        proxyError = errBody['error']?.toString() ?? 'HTTP ${proxyRes.statusCode}';
+      } catch (_) {
+        proxyError = 'AI proxy HTTP ${proxyRes.statusCode}';
+      }
+    } catch (e) {
+      proxyError = 'Live AI unreachable: $e';
+    }
 
     if (runtimeGeminiKey.isNotEmpty) {
       final res = await _classifyWithGemini(imageBytes);
@@ -121,20 +136,17 @@ class AiVisionService {
       if (res != null) return res;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 550));
-    final hash = imageBytes.length % 5;
-    final type = AppConstants.wasteTypes[hash];
-    final severity = hash == 0 || hash == 4
-        ? 'High'
-        : (hash == 1 || hash == 3 ? 'Medium' : 'Low');
     return WasteClassificationResult(
-      isWaste: true,
-      wasteType: type,
-      severity: severity,
-      confidence: 0.55,
+      isWaste: false,
+      rejectionReason: proxyError,
+      summary: '',
+      wasteType: 'Mixed/Debris',
+      severity: 'Medium',
+      confidence: 0.0,
       containsFacesOrPlates: false,
       usedLiveAi: false,
-      providerLabel: 'Offline Demo (Live AI unreachable)',
+      providerLabel: 'Live AI Error',
+      errorMessage: proxyError,
     );
   }
 
@@ -246,6 +258,7 @@ class AiVisionService {
     final isWaste = parsed['is_waste'] as bool? ?? true;
     final rejectionReason =
         parsed['rejection_reason']?.toString().trim() ?? '';
+    final summary = parsed['summary']?.toString().trim() ?? '';
     final wasteType = parsed['waste_type']?.toString() ?? 'Mixed/Debris';
     final severity = parsed['severity']?.toString() ?? 'Medium';
     return WasteClassificationResult(
@@ -255,6 +268,7 @@ class AiVisionService {
           : (isWaste
               ? ''
               : 'Image does not appear to show street waste or garbage.'),
+      summary: summary,
       wasteType: AppConstants.wasteTypes.contains(wasteType)
           ? wasteType
           : 'Mixed/Debris',

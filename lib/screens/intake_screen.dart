@@ -108,8 +108,10 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       if (!mounted) return;
       setState(() {
         _aiResult = res;
-        _selectedWasteType = res.wasteType;
-        _selectedSeverity = res.severity;
+        if (!res.hasError && res.isWaste) {
+          _selectedWasteType = res.wasteType;
+          _selectedSeverity = res.severity;
+        }
         _privacyBlurred = !res.containsFacesOrPlates;
         _isAnalyzing = false;
       });
@@ -157,8 +159,10 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     setState(() {
       _croppedPhotoBytes = targetBytes;
       _aiResult = res;
-      _selectedWasteType = res.wasteType;
-      _selectedSeverity = res.severity;
+      if (!res.hasError && res.isWaste) {
+        _selectedWasteType = res.wasteType;
+        _selectedSeverity = res.severity;
+      }
       _privacyBlurred = !res.containsFacesOrPlates;
       _isAnalyzing = false;
     });
@@ -470,9 +474,11 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        _aiResult!.isWaste
-                                            ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
-                                            : 'Not Street Waste',
+                                        _aiResult!.hasError
+                                            ? 'Live AI Error'
+                                            : (_aiResult!.isWaste
+                                                ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
+                                                : 'Not Street Waste'),
                                         style: const TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
@@ -656,17 +662,30 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _aiResult!.isWaste
-                              ? 'Auto-Filled by ${_aiResult!.providerLabel}: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
-                              : '⚠️ Rejected by ${_aiResult!.providerLabel}: Not a street waste photo — ${_aiResult!.rejectionReason}',
+                          _aiResult!.hasError
+                              ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check GEMINI_API_KEY in Vercel & Redeploy)'
+                              : (_aiResult!.isWaste
+                                  ? 'AI (${_aiResult!.providerLabel}): ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
+                                  : '⚠️ Rejected by ${_aiResult!.providerLabel}: Not a street waste photo — ${_aiResult!.rejectionReason}'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _aiResult!.isWaste
+                            color: _aiResult!.isWaste && !_aiResult!.hasError
                                 ? AppColors.forest
                                 : AppColors.danger,
                           ),
                         ),
+                        if (_aiResult!.summary.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'AI Summary: ${_aiResult!.summary}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                        ],
                         if (_aiResult!.containsFacesOrPlates) ...[
                           const SizedBox(height: 8),
                           SwitchListTile(
