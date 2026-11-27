@@ -47,7 +47,7 @@ export default async function handler(req, res) {
   const prompt =
     mode === 'verify'
       ? 'Compare the street waste Before and After photo(s). Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
-      : 'Analyze this Bengaluru street waste photo. Return ONLY valid JSON with keys: "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
+      : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is unrelated (e.g. landscape, mountains, forest, selfie, indoor, meme, clean road), set "is_waste": false and give a short "rejection_reason". Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
 
   const geminiParts = [
     { text: prompt },
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   try {
     if (geminiKey) {
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
             contents: [{ parts: geminiParts }],
             generationConfig: {
               responseMimeType: 'application/json',
-              maxOutputTokens: 160,
+              maxOutputTokens: 256,
               temperature: 0.1,
             },
           }),

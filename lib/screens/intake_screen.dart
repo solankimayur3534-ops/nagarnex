@@ -55,7 +55,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final s = ref.read(nagarNexProvider);
-      if (s.currentUserLocation != null) {
+      if (s.currentUserLocation != null &&
+          AppConstants.isInsideBengaluru(s.currentUserLocation!)) {
         final loc = s.currentUserLocation!;
         final resolved = await CityLocator.resolveLocationDetails(loc);
         if (!mounted) return;
@@ -226,6 +227,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       return;
     }
     final userPoint = res.point!;
+    if (!AppConstants.isInsideBengaluru(userPoint)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.warning,
+          content: Text(
+              'Live GPS is outside Bengaluru — map is locked to Bengaluru wards.'),
+        ),
+      );
+      return;
+    }
     final resolved = res.resolved!;
     int nearestIdx = -1;
     if (resolved.city == 'Bengaluru') {
@@ -279,6 +290,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Capture or upload a photo first.')),
+      );
+      return;
+    }
+    if (_aiResult != null && !_aiResult!.isWaste) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.danger,
+          content: Text(
+              'Not a waste photo: ${_aiResult!.rejectionReason} Please upload an actual street waste photo.'),
+        ),
       );
       return;
     }
@@ -788,6 +809,11 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                           options: MapOptions(
                             initialCenter: LatLng(_lat, _lng),
                             initialZoom: 14.0,
+                            minZoom: 11.0,
+                            maxZoom: 18.5,
+                            cameraConstraint: CameraConstraint.contain(
+                              bounds: AppConstants.bengaluruBounds,
+                            ),
                             onTap: enforceGpsOnly
                                 ? null
                                 : (_, point) => _pickFromMap(point),
@@ -918,6 +944,13 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                         options: MapOptions(
                                           initialCenter: LatLng(_lat, _lng),
                                           initialZoom: 15.0,
+                                          minZoom: 11.0,
+                                          maxZoom: 18.5,
+                                          cameraConstraint:
+                                              CameraConstraint.contain(
+                                            bounds:
+                                                AppConstants.bengaluruBounds,
+                                          ),
                                           onTap: enforceGpsOnly
                                               ? null
                                               : (_, pt) {

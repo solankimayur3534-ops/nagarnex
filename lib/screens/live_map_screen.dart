@@ -40,6 +40,17 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
     if (!mounted) return;
     setState(() => _locating = false);
     if (res.point != null) {
+      if (!AppConstants.isInsideBengaluru(res.point!)) {
+        _mapController.move(AppConstants.bengaluruCenter, 12.0);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.warning,
+            content: Text(
+                'Your live GPS is outside Bengaluru — map is locked to Bengaluru bounds.'),
+          ),
+        );
+        return;
+      }
       _mapController.move(res.point!, 15.2);
       final city = res.resolved?.city ?? ref.read(nagarNexProvider).currentCity;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -193,9 +204,21 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
                 child: FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter:
-                        state.currentUserLocation ?? AppConstants.bengaluruCenter,
-                    initialZoom: state.currentUserLocation != null ? 13.5 : 12.0,
+                    initialCenter: state.currentUserLocation != null &&
+                            AppConstants.isInsideBengaluru(
+                                state.currentUserLocation!)
+                        ? state.currentUserLocation!
+                        : AppConstants.bengaluruCenter,
+                    initialZoom: state.currentUserLocation != null &&
+                            AppConstants.isInsideBengaluru(
+                                state.currentUserLocation!)
+                        ? 13.5
+                        : 12.0,
+                    minZoom: 11.0,
+                    maxZoom: 18.5,
+                    cameraConstraint: CameraConstraint.contain(
+                      bounds: AppConstants.bengaluruBounds,
+                    ),
                   ),
                   children: [
                     TileLayer(

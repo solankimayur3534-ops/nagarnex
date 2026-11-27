@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 class AppColors {
@@ -34,6 +35,23 @@ class AppConstants {
   /// Default map center (Bengaluru MG Road / City Center)
   static const LatLng bengaluruCenter = LatLng(12.9716, 77.5946);
 
+  /// Strict Greater Bengaluru bounding box
+  static final LatLngBounds bengaluruBounds = LatLngBounds(
+    const LatLng(12.78, 77.38),
+    const LatLng(13.18, 77.82),
+  );
+
+  static bool isInsideBengaluru(LatLng point) =>
+      point.latitude >= 12.78 &&
+      point.latitude <= 13.18 &&
+      point.longitude >= 77.38 &&
+      point.longitude <= 77.82;
+
+  static LatLng clampToBengaluru(LatLng point) => LatLng(
+        point.latitude.clamp(12.78, 13.18).toDouble(),
+        point.longitude.clamp(77.38, 77.82).toDouble(),
+      );
+
   /// Clustering & verification thresholds
   static const double clusterRadiusMeters = 150.0;
   static const int recurringThresholdCount = 5;
@@ -47,7 +65,7 @@ class AppConstants {
   static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
   static const String liveBoardUrl = String.fromEnvironment(
     'NAGARNEX_PUBLIC_URL',
-    defaultValue: 'https://nagarnex.in/#/board',
+    defaultValue: 'https://nagarnex.vercel.app/board',
   );
 
   static bool get hasSupabaseConfig =>

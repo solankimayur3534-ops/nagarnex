@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../core/constants.dart';
 
 class WasteClassificationResult {
+  final bool isWaste;
+  final String rejectionReason;
   final String wasteType;
   final String severity;
   final double confidence;
@@ -13,6 +15,8 @@ class WasteClassificationResult {
   final String providerLabel;
 
   const WasteClassificationResult({
+    this.isWaste = true,
+    this.rejectionReason = '',
     required this.wasteType,
     required this.severity,
     required this.confidence,
@@ -124,12 +128,13 @@ class AiVisionService {
         ? 'High'
         : (hash == 1 || hash == 3 ? 'Medium' : 'Low');
     return WasteClassificationResult(
+      isWaste: true,
       wasteType: type,
       severity: severity,
-      confidence: 0.93,
-      containsFacesOrPlates: imageBytes.length % 3 == 0,
+      confidence: 0.55,
+      containsFacesOrPlates: false,
       usedLiveAi: false,
-      providerLabel: 'Demo Fallback',
+      providerLabel: 'Offline Demo (Live AI unreachable)',
     );
   }
 
@@ -238,9 +243,18 @@ class AiVisionService {
 
   static WasteClassificationResult _parseResult(
       Map<String, dynamic> parsed, String provider) {
+    final isWaste = parsed['is_waste'] as bool? ?? true;
+    final rejectionReason =
+        parsed['rejection_reason']?.toString().trim() ?? '';
     final wasteType = parsed['waste_type']?.toString() ?? 'Mixed/Debris';
     final severity = parsed['severity']?.toString() ?? 'Medium';
     return WasteClassificationResult(
+      isWaste: isWaste,
+      rejectionReason: rejectionReason.isNotEmpty
+          ? rejectionReason
+          : (isWaste
+              ? ''
+              : 'Image does not appear to show street waste or garbage.'),
       wasteType: AppConstants.wasteTypes.contains(wasteType)
           ? wasteType
           : 'Mixed/Debris',
