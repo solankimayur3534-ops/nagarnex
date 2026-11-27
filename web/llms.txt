@@ -1,17 +1,17 @@
-# NagarNex — Bengaluru Citizen-Verified Waste Accountability Platform
+# NagarNex
 
-> Independent citizen initiative for Bengaluru public and municipal waste accountability. Not affiliated with any government or municipal body.
+> Independent citizen-led waste accountability platform for Bengaluru: 15-second AI waste intake, 150m blackspot clustering, GPS-matched Before/After proof verification, 1-click community clean-up micro-drives, and a public QR rectified street board.
 
-## Overview
-NagarNex converts citizen street waste photos into clustered 150m blackspots, requires GPS-matched Before/After photo proof and neighbor consensus to verify clearances, mobilizes 1-click community clean-up micro-drives, and publishes rectified street locations on a public QR board.
+## Core Pages
 
-## Web Routes
-- `/` — Landing Page & 5-Step Accountability Loop
-- `/#/map` — Live Bengaluru Blackspot & Collection Center Map + Ward Health Strip
-- `/#/intake` — 15-Second AI Waste Intake (EXIF stripped, face/plate privacy check)
-- `/#/ward-index` — Bengaluru Ward Improvement Index & CSV Export
-- `/#/drives` — Community Clean-Up Micro-Drives & Citizen Impact Passport
-- `/#/board` — Public Roadside Rectified Board & Scannable QR Sync
+- [NagarNex Home](https://nagarnex.vercel.app/): Landing page, live civic pulse KPIs, 5-step accountability loop, and 4-step Judge Demo Tour.
+- [Live Bengaluru Map](https://nagarnex.vercel.app/map): Interactive Bengaluru waste blackspot map with 150m clustering, satellite/3D camera view, and collection hubs.
+- [15-Second AI Waste Intake](https://nagarnex.vercel.app/intake): Capture or upload street waste photos for Gemini Vision AI classification, EXIF stripping, and GPS verification.
+- [Bengaluru Ward Index](https://nagarnex.vercel.app/ward-index): Public ward clearance leaderboard, Civic Improvement Scores, and Open Data CSV export.
+- [Community Micro-Drives](https://nagarnex.vercel.app/drives): 1-click volunteer RSVP for neighborhood clean-up sprints.
+- [Public Roadside QR Board](https://nagarnex.vercel.app/board): Verified Before/After street clearances with scannable QR proof cards.
 
-## Serverless API
-- `POST /api/vision` — Secure server-side Gemini Vision proxy (`mode: "classify" | "verify"`).
+## API & Discovery
+
+- [AI Vision Proxy](https://nagarnex.vercel.app/api/vision): Server-side Gemini Vision classification and Before/After verification endpoint (`POST`).
+- [Sitemap](https://nagarnex.vercel.app/sitemap.xml): XML sitemap of public NagarNex routes.

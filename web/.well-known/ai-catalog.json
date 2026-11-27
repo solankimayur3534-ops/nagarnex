@@ -1,0 +1,22 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "NagarNex — Bengaluru Waste Accountability",
+    "identifier": "did:web:nagarnex.vercel.app",
+    "documentationUrl": "https://nagarnex.vercel.app/llms.txt"
+  },
+  "entries": [
+    {
+      "identifier": "nagarnex-vision-api",
+      "type": "api",
+      "url": "https://nagarnex.vercel.app/api/vision",
+      "description": "Serverless Gemini Vision API for classifying Bengaluru street waste photos and verifying Before/After clearance proof."
+    },
+    {
+      "identifier": "nagarnex-llms-txt",
+      "type": "documentation",
+      "url": "https://nagarnex.vercel.app/llms.txt",
+      "description": "Markdown overview and route directory for NagarNex civic waste accountability platform."
+    }
+  ]
+}
