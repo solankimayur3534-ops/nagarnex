@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -143,6 +144,8 @@ class RoadsideBoardScreen extends ConsumerWidget {
                           tag: '● BEFORE',
                           caption: '${r.wasteType} accumulation reported',
                           isAfter: false,
+                          photoUrl: r.beforePhotoUrl,
+                          localBytes: state.localPhotoCache[r.beforePhotoUrl],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -152,6 +155,10 @@ class RoadsideBoardScreen extends ConsumerWidget {
                           matchBadge: 'AI Match: 96%',
                           caption: 'Cleared & citizen consensus verified',
                           isAfter: true,
+                          photoUrl: r.afterPhotoUrl,
+                          localBytes: r.afterPhotoUrl != null
+                              ? state.localPhotoCache[r.afterPhotoUrl!]
+                              : null,
                         ),
                       ),
                     ],
@@ -447,19 +454,56 @@ class _BoardProofBox extends StatelessWidget {
   final String? matchBadge;
   final String caption;
   final bool isAfter;
+  final String? photoUrl;
+  final Uint8List? localBytes;
 
   const _BoardProofBox({
     required this.tag,
     this.matchBadge,
     required this.caption,
     required this.isAfter,
+    this.photoUrl,
+    this.localBytes,
   });
+
+  static const Map<String, String> _demoAssetMap = {
+    'demo://before/bellandur': 'assets/images/demo/bellandur_before.jpg',
+    'demo://after/bellandur': 'assets/images/demo/bellandur_after.jpg',
+    'demo://before/indiranagar': 'assets/images/demo/indiranagar_before.jpg',
+    'demo://after/indiranagar': 'assets/images/demo/indiranagar_after.jpg',
+    'demo://before/jayanagar': 'assets/images/demo/jayanagar_before.jpg',
+    'demo://after/jayanagar': 'assets/images/demo/jayanagar_after.jpg',
+  };
+
+  Widget? _buildPhoto() {
+    if (localBytes != null) {
+      return Image.memory(localBytes!, fit: BoxFit.cover);
+    }
+    if (photoUrl != null) {
+      final demoAsset = _demoAssetMap[photoUrl!];
+      if (demoAsset != null) {
+        return Image.asset(
+          demoAsset,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        );
+      }
+      if (photoUrl!.startsWith('http://') || photoUrl!.startsWith('https://')) {
+        return Image.network(
+          photoUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        );
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final photo = _buildPhoto();
     return Container(
-      constraints: const BoxConstraints(minHeight: 130),
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 155),
       decoration: BoxDecoration(
         color: isAfter ? AppColors.emeraldSoft : AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(14),
@@ -467,63 +511,130 @@ class _BoardProofBox extends StatelessWidget {
           color: isAfter ? AppColors.emerald : AppColors.border,
         ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.ink,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  tag,
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              if (matchBadge != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    matchBadge!,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.forest,
+          if (photo != null)
+            SizedBox(
+              height: 120,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  photo,
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    right: 8,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.ink.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            tag,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        if (matchBadge != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.94),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              matchBadge!,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.forest,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Icon(
-            isAfter
-                ? Icons.verified_rounded
-                : Icons.delete_sweep_outlined,
-            size: 26,
-            color: isAfter ? AppColors.forest : AppColors.inkMuted,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            caption,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkSecondary,
+                ],
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.ink,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          tag,
+                          style: const TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      if (matchBadge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            matchBadge!,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.forest,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Icon(
+                    isAfter
+                        ? Icons.verified_rounded
+                        : Icons.delete_sweep_outlined,
+                    size: 26,
+                    color: isAfter ? AppColors.forest : AppColors.inkMuted,
+                  ),
+                ],
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Text(
+              caption,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkSecondary,
+              ),
             ),
           ),
         ],
