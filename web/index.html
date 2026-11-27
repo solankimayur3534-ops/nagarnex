@@ -14,10 +14,12 @@
   <meta name="theme-color" content="#064E3B">
 
   <!-- Performance Hints -->
+  <link rel="preload" href="flutter_bootstrap.js" as="script">
   <link rel="preload" href="assets/images/hero_bg.jpg" as="image">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://mwpemvyrmdtixqsrivsd.supabase.co">
   <link rel="ard" href="https://nagarnex.vercel.app/.well-known/ard.json">
+  <link rel="ai-catalog" href="https://nagarnex.vercel.app/.well-known/ai-catalog.json">
 
   <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website">
@@ -165,11 +167,23 @@
     };
     window.addEventListener('flutter-first-frame', function () {
       var s = document.getElementById('nn-splash');
-      if (s) {
-        s.style.opacity = '0';
-        setTimeout(function () { s.remove(); }, 360);
-      }
+      if (s) s.remove();
     });
+    if (navigator.modelContext && typeof navigator.modelContext.registerTool === 'function') {
+      try {
+        navigator.modelContext.registerTool({
+          name: 'get_nagarnex_routes',
+          description: 'Returns NagarNex Bengaluru & Indian cities waste accountability routes and API endpoints.',
+          inputSchema: { type: 'object', properties: {} },
+          execute: function () {
+            return {
+              routes: ['/map', '/intake', '/ward-index', '/drives', '/board'],
+              visionApi: '/api/vision'
+            };
+          }
+        });
+      } catch (_) {}
+    }
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
