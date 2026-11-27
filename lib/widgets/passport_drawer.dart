@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants.dart';
 import '../services/app_state.dart';
+import 'rank_badge.dart';
 
 class PassportDrawer extends ConsumerWidget {
   const PassportDrawer({super.key});
@@ -92,7 +93,7 @@ class PassportDrawer extends ConsumerWidget {
     return Drawer(
       backgroundColor: AppColors.background,
       child: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,58 +150,7 @@ class PassportDrawer extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 16),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.ink,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'CITIZEN IMPACT PASSPORT',
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 0.9,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          profile.civicTier,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.emerald,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '${profile.civicPoints} pts',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              RankPassportCard(civicPoints: profile.civicPoints),
               const SizedBox(height: 20),
               const Text(
                 'Verified Civic Contributions',
@@ -275,7 +225,7 @@ class PassportDrawer extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 18),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

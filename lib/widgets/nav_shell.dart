@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
 import '../services/app_state.dart';
+import 'animated_logo.dart';
 import 'passport_drawer.dart';
 import 'updates_sheet.dart';
 
@@ -73,19 +74,7 @@ class NavShell extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.forest,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.recycling_rounded,
-                      color: Colors.white,
-                      size: 17,
-                    ),
-                  ),
+                  const AnimatedLogo(size: 32),
                   const SizedBox(width: 8),
                   const Text(
                     AppConstants.appName,
@@ -286,6 +275,8 @@ class NavShell extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                const AnimatedLogo(size: 24),
+                const SizedBox(width: 10),
                 const Expanded(
                   child: Text(
                     'NagarNex — Independent Citizen Initiative. Not affiliated with any government authority.',

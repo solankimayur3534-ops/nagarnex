@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +6,46 @@ import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
 import '../models/waste_report.dart';
 import '../services/app_state.dart';
+import '../widgets/animated_logo.dart';
+import '../widgets/judge_tour.dart';
 
-class LandingScreen extends ConsumerWidget {
+class LandingScreen extends ConsumerStatefulWidget {
   const LandingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends ConsumerState<LandingScreen> {
+  int _tickerIndex = 0;
+  Timer? _tickerTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _tickerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) {
+        setState(() => _tickerIndex++);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tickerTimer?.cancel();
+    super.dispose();
+  }
+
+  void _openJudgeTour() {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (_) => const JudgeTourOverlay(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(nagarNexProvider);
     final clearedCount = state.reports
         .where((r) => r.status == ReportStatus.verifiedCleared)
@@ -59,30 +94,7 @@ class LandingScreen extends ConsumerWidget {
                         horizontal: isMobile ? 14 : 24, vertical: 12),
                     child: Row(
                       children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.emerald, AppColors.forest],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black38,
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.recycling_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                        const AnimatedLogo(size: 36, darkBackground: true),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -141,7 +153,7 @@ class LandingScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        if (!isMobile)
+                        if (!isMobile) ...[
                           TextButton(
                             onPressed: () => context.go('/board'),
                             child: const Text(
@@ -152,6 +164,19 @@ class LandingScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
+                          TextButton.icon(
+                            onPressed: _openJudgeTour,
+                            icon: const Icon(Icons.play_circle_outline_rounded,
+                                size: 16, color: AppColors.emeraldMint),
+                            label: const Text(
+                              'Judge Demo',
+                              style: TextStyle(
+                                color: AppColors.emeraldMint,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(width: 8),
                         FilledButton(
                           onPressed: () => context.go('/map'),
@@ -196,6 +221,7 @@ class LandingScreen extends ConsumerWidget {
                                     onMap: () => context.go('/map'),
                                     onIntake: () => context.go('/intake'),
                                     onBoard: () => context.go('/board'),
+                                    onDemo: _openJudgeTour,
                                   ),
                                 ),
                                 const SizedBox(width: 32),
@@ -215,6 +241,7 @@ class LandingScreen extends ConsumerWidget {
                               onMap: () => context.go('/map'),
                               onIntake: () => context.go('/intake'),
                               onBoard: () => context.go('/board'),
+                              onDemo: _openJudgeTour,
                             ),
                             const SizedBox(height: 24),
                             _Hero3DPreviewCard(
@@ -343,23 +370,69 @@ class LandingScreen extends ConsumerWidget {
                 ),
               ),
 
-              // Compliance Footer
+              // Live Civic Ticker Strip (M2)
+              Builder(
+                builder: (context) {
+                  final tickerItems = [
+                    '● LIVE  ·  $totalMergedReports merged citizen reports across ${state.reports.length} Bengaluru spots',
+                    '● VERIFIED  ·  $clearedCount blackspots cleared with GPS Before/After proof',
+                    '● ACTION  ·  ${state.drives.length} active community clean-up micro-drives open for RSVP',
+                  ];
+                  final currentMsg = tickerItems[_tickerIndex % tickerItems.length];
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald.withValues(alpha: 0.16),
+                      border: Border(
+                        top: BorderSide(color: AppColors.emeraldMint.withValues(alpha: 0.25)),
+                      ),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      child: Text(
+                        currentMsg,
+                        key: ValueKey(currentMsg),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.emeraldMint,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Compliance Footer with Animated Logo
               Container(
                 width: double.infinity,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF021610).withValues(alpha: 0.85),
+                  color: const Color(0xFF021610).withValues(alpha: 0.9),
                   border: Border(
                     top: BorderSide(
                       color: Colors.white.withValues(alpha: 0.12),
                     ),
                   ),
                 ),
-                child: const Text(
-                  AppConstants.disclaimerText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const AnimatedLogo(size: 24, darkBackground: true),
+                    const SizedBox(width: 10),
+                    const Flexible(
+                      child: Text(
+                        AppConstants.disclaimerText,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -374,11 +447,13 @@ class _HeroCopy extends StatelessWidget {
   final VoidCallback onMap;
   final VoidCallback onIntake;
   final VoidCallback onBoard;
+  final VoidCallback onDemo;
 
   const _HeroCopy({
     required this.onMap,
     required this.onIntake,
     required this.onBoard,
+    required this.onDemo,
   });
 
   @override
@@ -480,6 +555,24 @@ class _HeroCopy extends StatelessWidget {
               label: const Text(
                 'Roadside Board',
                 style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onDemo,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.emeraldMint,
+                side: BorderSide(
+                    color: AppColors.emeraldMint.withValues(alpha: 0.55)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.play_circle_outline_rounded),
+              label: const Text(
+                '4-Step Judge Tour',
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -734,13 +827,20 @@ class _GlassMetricCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
+                TweenAnimationBuilder<int>(
+                  tween: IntTween(begin: 0, end: int.tryParse(value) ?? 0),
+                  duration: const Duration(milliseconds: 1100),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, animatedVal, _) {
+                    return Text(
+                      int.tryParse(value) != null ? '$animatedVal' : value,
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 4),
                 Text(

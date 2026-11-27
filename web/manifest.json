@@ -1,13 +1,26 @@
 {
     "name": "NagarNex — Bengaluru Waste Accountability",
     "short_name": "NagarNex",
-    "start_url": ".",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#FAFAFA",
-    "theme_color": "#10B981",
+    "background_color": "#041F17",
+    "theme_color": "#064E3B",
     "description": "Independent citizen-verified waste accountability platform for Bengaluru.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["utilities", "lifestyle"],
+    "shortcuts": [
+        {
+            "name": "Report Waste",
+            "url": "/intake",
+            "icons": [{"src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png"}]
+        },
+        {
+            "name": "Live Map",
+            "url": "/map",
+            "icons": [{"src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png"}]
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

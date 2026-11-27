@@ -6,25 +6,31 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>NagarNex (nagarnex.in) — Bengaluru Citizen-Verified Waste Accountability</title>
-  <meta name="description" content="NagarNex (nagarnex.in) turns Bengaluru street garbage reports into 150m clustered blackspots, GPS-matched Before/After verified clearances, 1-click community clean-up micro-drives, and a public QR rectified board.">
-  <meta name="keywords" content="NagarNex, nagarnex.in, Bengaluru waste management, civic tech, garbage blackspots, Before After proof, community clean-up drives, Ward Improvement Index, BuildForMyCity">
-  <link rel="canonical" href="https://nagarnex.in/">
+  <title>NagarNex — Bengaluru Citizen-Verified Waste Accountability</title>
+  <meta name="description" content="NagarNex turns Bengaluru street garbage reports into 150m clustered blackspots, GPS-matched Before/After verified clearances, 1-click community clean-up micro-drives, and a public QR rectified board.">
+  <meta name="keywords" content="NagarNex, Bengaluru waste management, civic tech, garbage blackspots, Before After proof, community clean-up drives, Ward Improvement Index, BuildForMyCity">
+  <link rel="canonical" href="https://nagarnex.vercel.app/">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#064E3B">
 
+  <!-- Performance Hints -->
+  <link rel="preload" href="assets/images/hero_bg.jpg" as="image">
+  <link rel="dns-prefetch" href="https://mwpemvyrmdtixqsrivsd.supabase.co">
+
   <!-- Open Graph / Social Sharing -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://nagarnex.in/">
-  <meta property="og:title" content="NagarNex — Bengaluru Waste Accountability (nagarnex.in)">
+  <meta property="og:url" content="https://nagarnex.vercel.app/">
+  <meta property="og:title" content="NagarNex — Bengaluru Waste Accountability">
   <meta property="og:description" content="15-second AI waste intake, 150m blackspot clustering, Before/After citizen verification, and public QR rectified street board for Bengaluru.">
   <meta property="og:site_name" content="NagarNex">
+  <meta property="og:image" content="https://nagarnex.vercel.app/icons/Icon-512.png">
 
   <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://nagarnex.in/">
-  <meta name="twitter:title" content="NagarNex (nagarnex.in) — Bengaluru Waste Accountability">
+  <meta name="twitter:url" content="https://nagarnex.vercel.app/">
+  <meta name="twitter:title" content="NagarNex — Bengaluru Waste Accountability">
   <meta name="twitter:description" content="Independent citizen-led waste accountability for Bengaluru: AI intake, 150m blackspot clustering, Before/After proof, and 1-click clean-up drives.">
+  <meta name="twitter:image" content="https://nagarnex.vercel.app/icons/Icon-512.png">
 
   <!-- AI-Agent & Search Engine Structured Data -->
   <script type="application/ld+json">
@@ -32,7 +38,7 @@
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "NagarNex",
-    "url": "https://nagarnex.in",
+    "url": "https://nagarnex.vercel.app",
     "applicationCategory": "CivicTechnology",
     "operatingSystem": "Web, Android",
     "description": "Independent citizen-verified public and municipal waste accountability platform for Bengaluru featuring 15-second AI waste intake, 150m blackspot clustering, Before/After GPS proof verification, community clean-up micro-drives, and a public QR rectified board.",
@@ -57,21 +63,67 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    #nn-splash {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(160deg, #041F17 0%, #064E3B 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.35s ease;
+    }
+    #nn-splash img {
+      width: 84px;
+      height: 84px;
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      animation: nnPulse 1.5s ease-in-out infinite;
+    }
+    #nn-splash p {
+      margin-top: 16px;
+      color: #6EE7B7;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+    }
+    @keyframes nnPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.07); }
+    }
+  </style>
 </head>
-<body style="background-color:#F8FAFC;margin:0;">
+<body style="background-color:#041F17;margin:0;">
+  <div id="nn-splash">
+    <img src="icons/Icon-192.png" alt="NagarNex Logo" />
+    <p>NAGARNEX · LOADING CIVIC GRID</p>
+  </div>
   <noscript>
-    <main style="font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;">
+    <main style="font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:24px;color:#fff;">
       <h1>NagarNex — Bengaluru Citizen-Verified Waste Accountability</h1>
       <p>NagarNex is an independent citizen-led waste accountability platform for Bengaluru. It clusters duplicate street garbage reports within 150m, verifies clearances with GPS-matched Before/After photo proof, powers 1-click community clean-up micro-drives, and publishes rectified streets on a public QR board.</p>
       <ul>
-        <li>Live Map &amp; 150m Blackspot Clustering: /#/map</li>
-        <li>15-Second AI Waste Intake: /#/intake</li>
-        <li>Bengaluru Ward Improvement Index: /#/ward-index</li>
-        <li>Community Clean-Up Micro-Drives: /#/drives</li>
-        <li>Public Roadside Rectified Board: /#/board</li>
+        <li>Live Map &amp; 150m Blackspot Clustering: /map</li>
+        <li>15-Second AI Waste Intake: /intake</li>
+        <li>Bengaluru Ward Improvement Index: /ward-index</li>
+        <li>Community Clean-Up Micro-Drives: /drives</li>
+        <li>Public Roadside Rectified Board: /board</li>
       </ul>
     </main>
   </noscript>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('nn-splash');
+      if (s) {
+        s.style.opacity = '0';
+        setTimeout(function () { s.remove(); }, 360);
+      }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

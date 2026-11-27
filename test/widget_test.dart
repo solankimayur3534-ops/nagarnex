@@ -8,6 +8,8 @@ import 'package:nagarnex/main.dart';
 import 'package:nagarnex/models/waste_report.dart';
 import 'package:nagarnex/services/app_state.dart';
 import 'package:nagarnex/services/supabase_service.dart';
+import 'package:nagarnex/widgets/judge_tour.dart';
+import 'package:nagarnex/widgets/rank_badge.dart';
 
 void main() {
   test('GeoUtils clusters matching waste type within 150m only', () {
@@ -197,5 +199,14 @@ void main() {
     await tester.tap(find.byTooltip('Report Waste'));
     await tester.pumpAndSettle();
     expect(find.text('15-Second AI Waste Intake'), findsOneWidget);
+  });
+
+  test('CivicRank & 4-step Judge Tour match expected spec', () {
+    expect(CivicRank.fromPoints(0).name, 'Sprout');
+    expect(CivicRank.fromPoints(145).name, 'Sapling');
+    expect(CivicRank.fromPoints(500).name, 'Protector');
+    expect(CivicRank.fromPoints(2600).name, 'Legend');
+    expect(CivicRank.pointsToNextRank(145), 105);
+    expect(kJudgeTourSteps.length, 4);
   });
 }
