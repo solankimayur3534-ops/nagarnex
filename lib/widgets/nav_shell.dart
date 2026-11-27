@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
+import '../core/fullscreen_helper.dart';
 import '../services/app_state.dart';
 import 'animated_logo.dart';
 import 'passport_drawer.dart';
@@ -68,44 +69,49 @@ class NavShell extends ConsumerWidget {
         titleSpacing: isMobile ? 8 : 16,
         title: Row(
           children: [
-            InkWell(
-              onTap: () => context.go('/'),
-              borderRadius: BorderRadius.circular(10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const AnimatedLogo(size: 32),
-                  const SizedBox(width: 8),
-                  const Text(
-                    AppConstants.appName,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.ink,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  if (isDesktop) ...[
+            Flexible(
+              child: InkWell(
+                onTap: () => context.go('/'),
+                borderRadius: BorderRadius.circular(10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const AnimatedLogo(size: 32),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Text(
-                        'Bengaluru',
+                    const Flexible(
+                      child: Text(
+                        AppConstants.appName,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.inkSecondary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                          letterSpacing: -0.3,
                         ),
                       ),
                     ),
+                    if (isDesktop) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceMuted,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: const Text(
+                          'Bengaluru',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.inkSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             if (isDesktop) ...[
@@ -191,6 +197,8 @@ class NavShell extends ConsumerWidget {
           IconButton(
             onPressed: () => context.go('/intake'),
             tooltip: 'Report Waste',
+            padding: isMobile ? const EdgeInsets.all(4) : null,
+            constraints: isMobile ? const BoxConstraints(minWidth: 36, minHeight: 36) : null,
             icon: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
@@ -216,7 +224,7 @@ class NavShell extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: isMobile ? 0 : 6),
           Builder(
             builder: (ctx) {
               final navState = ref.watch(nagarNexProvider);
@@ -232,6 +240,8 @@ class NavShell extends ConsumerWidget {
                   );
                 },
                 tooltip: 'My Problem Updates',
+                padding: isMobile ? const EdgeInsets.all(4) : null,
+                constraints: isMobile ? const BoxConstraints(minWidth: 36, minHeight: 36) : null,
                 icon: Badge(
                   isLabelVisible: badgeCount > 0,
                   backgroundColor: navState.unreadUpdates > 0
@@ -249,8 +259,23 @@ class NavShell extends ConsumerWidget {
           ),
           Builder(
             builder: (ctx) => IconButton(
+              onPressed: toggleFullscreen,
+              tooltip: 'Toggle Fullscreen',
+              padding: isMobile ? const EdgeInsets.all(4) : null,
+              constraints: isMobile ? const BoxConstraints(minWidth: 36, minHeight: 36) : null,
+              icon: const Icon(
+                Icons.fullscreen_rounded,
+                color: AppColors.ink,
+                size: 22,
+              ),
+            ),
+          ),
+          Builder(
+            builder: (ctx) => IconButton(
               onPressed: () => Scaffold.of(ctx).openEndDrawer(),
               tooltip: 'Citizen Impact Passport',
+              padding: isMobile ? const EdgeInsets.all(4) : null,
+              constraints: isMobile ? const BoxConstraints(minWidth: 36, minHeight: 36) : null,
               icon: const CircleAvatar(
                 radius: 15,
                 backgroundColor: AppColors.ink,
@@ -259,7 +284,7 @@ class NavShell extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: isMobile ? 4 : 8),
         ],
       ),
       body: Column(

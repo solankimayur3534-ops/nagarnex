@@ -1,0 +1,3 @@
+void enterFullscreenIfMobile() {}
+
+void toggleFullscreen() {}

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
+import '../core/fullscreen_helper.dart';
 import '../models/waste_report.dart';
 import '../services/app_state.dart';
 import '../widgets/animated_logo.dart';
@@ -179,7 +180,10 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                         ],
                         const SizedBox(width: 8),
                         FilledButton(
-                          onPressed: () => context.go('/map'),
+                          onPressed: () {
+                            enterFullscreenIfMobile();
+                            context.go('/map');
+                          },
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.emeraldMint,
                             foregroundColor: const Color(0xFF041F17),
