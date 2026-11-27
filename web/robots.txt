@@ -2,4 +2,3 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Sitemap: https://nagarnex.vercel.app/sitemap.xml
-Agentmap: https://nagarnex.vercel.app/.well-known/ard.json
