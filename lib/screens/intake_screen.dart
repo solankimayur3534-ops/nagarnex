@@ -450,19 +450,29 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: AppColors.forest
+                                    color: (_aiResult!.isWaste
+                                            ? AppColors.forest
+                                            : AppColors.danger)
                                         .withValues(alpha: 0.92),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.auto_awesome_rounded,
-                                          size: 14,
-                                          color: AppColors.emeraldMint),
+                                      Icon(
+                                        _aiResult!.isWaste
+                                            ? Icons.auto_awesome_rounded
+                                            : Icons.warning_amber_rounded,
+                                        size: 14,
+                                        color: _aiResult!.isWaste
+                                            ? AppColors.emeraldMint
+                                            : Colors.white,
+                                      ),
                                       const SizedBox(width: 6),
                                       Text(
-                                        'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)',
+                                        _aiResult!.isWaste
+                                            ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
+                                            : 'Not Street Waste',
                                         style: const TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
@@ -632,19 +642,29 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.emeraldSoft,
+                      color: _aiResult!.isWaste
+                          ? AppColors.emeraldSoft
+                          : AppColors.dangerSoft,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.emerald),
+                      border: Border.all(
+                        color: _aiResult!.isWaste
+                            ? AppColors.emerald
+                            : AppColors.danger,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Auto-Filled by ${_aiResult!.providerLabel}: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)',
-                          style: const TextStyle(
+                          _aiResult!.isWaste
+                              ? 'Auto-Filled by ${_aiResult!.providerLabel}: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
+                              : '⚠️ Rejected by ${_aiResult!.providerLabel}: Not a street waste photo — ${_aiResult!.rejectionReason}',
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.forest,
+                            color: _aiResult!.isWaste
+                                ? AppColors.forest
+                                : AppColors.danger,
                           ),
                         ),
                         if (_aiResult!.containsFacesOrPlates) ...[
