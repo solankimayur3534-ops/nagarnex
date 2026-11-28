@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants.dart';
+import 'screens/central_hub_screen.dart';
 import 'screens/drives_screen.dart';
 import 'screens/intake_screen.dart';
 import 'screens/landing_screen.dart';
@@ -58,6 +59,10 @@ final GoRouter _router = GoRouter(
         GoRoute(
           path: '/board',
           builder: (context, state) => const RoadsideBoardScreen(),
+        ),
+        GoRoute(
+          path: '/central',
+          builder: (context, state) => const CentralHubScreen(),
         ),
       ],
     ),

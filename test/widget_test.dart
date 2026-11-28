@@ -200,6 +200,17 @@ void main() {
     await tester.tap(find.byTooltip('Report Waste'));
     await tester.pumpAndSettle();
     expect(find.text('15-Second AI Waste Intake'), findsOneWidget);
+
+    // Open Passport Drawer -> Central Command Hub on 375px mobile
+    await tester.tap(find.byTooltip('Citizen Impact Passport'));
+    await tester.pumpAndSettle();
+    final hubBtn = find.text('Open Central Command Hub →');
+    await tester.ensureVisible(hubBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(hubBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Centralized Responsibility & Escalation Hub'),
+        findsOneWidget);
   });
 
   test('CivicRank & 4-step Judge Tour match expected spec', () {

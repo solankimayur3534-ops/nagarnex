@@ -176,14 +176,18 @@ class RankPassportCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Progress to ${next.emoji} ${next.name}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: rank.color.withValues(alpha: 0.8),
+                Expanded(
+                  child: Text(
+                    'Progress to ${next.emoji} ${next.name}',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: rank.color.withValues(alpha: 0.8),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 6),
                 Text(
                   '$toNext pts to go',
                   style: TextStyle(

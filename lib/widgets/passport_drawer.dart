@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../core/constants.dart';
 import '../services/app_state.dart';
 import 'rank_badge.dart';
@@ -204,6 +205,7 @@ class PassportDrawer extends ConsumerWidget {
                     DropdownButtonFormField<String>(
                       initialValue: appState.adminRole,
                       isDense: true,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Active Management Level',
                         border: OutlineInputBorder(),
@@ -213,13 +215,16 @@ class PassportDrawer extends ConsumerWidget {
                       items: const [
                         DropdownMenuItem(
                             value: 'Citizen',
-                            child: Text('Citizen (Report & Verify)')),
+                            child: Text('Citizen (Report & Verify)',
+                                overflow: TextOverflow.ellipsis)),
                         DropdownMenuItem(
                             value: 'Municipal Ward Admin',
-                            child: Text('Municipal Ward Admin (BBMP / ULB)')),
+                            child: Text('Municipal Ward Admin (ULB)',
+                                overflow: TextOverflow.ellipsis)),
                         DropdownMenuItem(
                             value: 'National Civic Admin',
-                            child: Text('National Civic Admin (Super Policy)')),
+                            child: Text('National Civic Admin (Policy)',
+                                overflow: TextOverflow.ellipsis)),
                       ],
                       onChanged: (v) {
                         if (v != null) {
@@ -236,6 +241,23 @@ class PassportDrawer extends ConsumerWidget {
                         height: 1.35,
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          context.go('/central');
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.forest,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.hub_outlined, size: 16),
+                        label: const Text('Open Central Command Hub →',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -249,12 +271,13 @@ class PassportDrawer extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
+              Material(
+                color: AppColors.surface,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border),
+                  side: const BorderSide(color: AppColors.border),
                 ),
+                clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
                     SwitchListTile(

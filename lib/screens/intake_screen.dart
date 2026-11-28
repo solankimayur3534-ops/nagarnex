@@ -685,7 +685,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                               ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check NVIDIA_NIM_API_KEY / GEMINI_API_KEY in Vercel & Redeploy)'
                               : (_aiResult!.isWaste
                                   ? 'AI (${_aiResult!.providerLabel}): ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
-                                  : '⚠️ Area Looks Clean / Not Waste (${_aiResult!.providerLabel}): ${_aiResult!.rejectionReason}'),
+                                  : '⚠️ No Street Waste Detected (${_aiResult!.providerLabel}): ${_aiResult!.rejectionReason}'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,

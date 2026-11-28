@@ -180,4 +180,28 @@ class WasteReport {
     if (hours >= 1) return '${hours}h ${mins}m';
     return '${mins}m';
   }
+
+  String get escalationTier {
+    if (status == ReportStatus.verifiedCleared) return 'Resolved ✓';
+    if (slaDeadline.isBefore(DateTime.now()) || isRecurring) {
+      return 'L3 Central Command';
+    }
+    if (reportCount >= 3 || status == ReportStatus.pendingVerification) {
+      return 'L2 Zonal Supervisor';
+    }
+    return 'L1 Ward Team';
+  }
+
+  String get responsibleUnit {
+    final w = wardName.toLowerCase();
+    if (w.contains('koramangala') || w.contains('bellandur') || w.contains('hsr')) {
+      return 'South-East Zone Sanitation Desk';
+    }
+    if (w.contains('indiranagar') || w.contains('whitefield')) {
+      return 'East Zone Sanitation Desk';
+    }
+    if (w.contains('jayanagar')) return 'South Zone Sanitation Desk';
+    if (w.contains('malleswaram')) return 'West Zone Sanitation Desk';
+    return 'Central Civic Dispatch';
+  }
 }

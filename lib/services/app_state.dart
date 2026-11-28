@@ -31,6 +31,7 @@ class NagarNexState {
   final bool cameraPermissionGranted;
   final bool permissionGateRequired;
   final String adminRole;
+  final Map<String, String> assignedHandlers;
   final bool isLoading;
 
   const NagarNexState({
@@ -49,6 +50,7 @@ class NagarNexState {
     this.cameraPermissionGranted = false,
     this.permissionGateRequired = false,
     this.adminRole = 'Citizen',
+    this.assignedHandlers = const {},
     this.isLoading = false,
   });
 
@@ -68,6 +70,7 @@ class NagarNexState {
     bool? cameraPermissionGranted,
     bool? permissionGateRequired,
     String? adminRole,
+    Map<String, String>? assignedHandlers,
     bool? isLoading,
   }) {
     return NagarNexState(
@@ -88,6 +91,7 @@ class NagarNexState {
       permissionGateRequired:
           permissionGateRequired ?? this.permissionGateRequired,
       adminRole: adminRole ?? this.adminRole,
+      assignedHandlers: assignedHandlers ?? this.assignedHandlers,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -265,6 +269,12 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
 
   void setAdminRole(String role) {
     state = state.copyWith(adminRole: role);
+  }
+
+  void assignResponsibility(String reportId, String handler) {
+    final next = Map<String, String>.from(state.assignedHandlers)
+      ..[reportId] = handler;
+    state = state.copyWith(assignedHandlers: next);
   }
 
   Future<void> setAdminEnforcement({
