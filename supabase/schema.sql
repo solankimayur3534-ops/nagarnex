@@ -97,7 +97,7 @@ insert into app_settings (id, enforce_camera_only, enforce_gps_only)
 values (1, false, false)
 on conflict (id) do nothing;
 
--- Create public storage bucket for Before/After photos
+-- Create public storage bucket for Before/After photos (read + upload only; no anonymous delete)
 insert into storage.buckets (id, name, public)
 values ('waste-photos', 'waste-photos', true)
 on conflict (id) do nothing;
@@ -105,8 +105,45 @@ on conflict (id) do nothing;
 do $$
 begin
   if not exists (
-    select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Public Access waste-photos'
+    select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Public Read waste-photos'
   ) then
-    create policy "Public Access waste-photos" on storage.objects for all using (bucket_id = 'waste-photos') with check (bucket_id = 'waste-photos');
+    create policy "Public Read waste-photos" on storage.objects for select using (bucket_id = 'waste-photos');
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'Public Upload waste-photos'
+  ) then
+    create policy "Public Upload waste-photos" on storage.objects for insert with check (bucket_id = 'waste-photos');
+  end if;
+end $$;
+
+-- Row Level Security (RLS) hardening: prevent anonymous DELETE across all tables
+alter table waste_reports enable row level security;
+alter table collection_centers enable row level security;
+alter table micro_drives enable row level security;
+alter table citizen_profiles enable row level security;
+alter table app_settings enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename = 'waste_reports' and policyname = 'Public read waste_reports') then
+    create policy "Public read waste_reports" on waste_reports for select using (true);
+    create policy "Public insert waste_reports" on waste_reports for insert with check (true);
+    create policy "Public update waste_reports" on waste_reports for update using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'collection_centers' and policyname = 'Public read collection_centers') then
+    create policy "Public read collection_centers" on collection_centers for select using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'micro_drives' and policyname = 'Public read micro_drives') then
+    create policy "Public read micro_drives" on micro_drives for select using (true);
+    create policy "Public insert micro_drives" on micro_drives for insert with check (true);
+    create policy "Public update micro_drives" on micro_drives for update using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'citizen_profiles' and policyname = 'Public read citizen_profiles') then
+    create policy "Public read citizen_profiles" on citizen_profiles for select using (true);
+    create policy "Public upsert citizen_profiles" on citizen_profiles for insert with check (true);
+    create policy "Public update citizen_profiles" on citizen_profiles for update using (true);
+  end if;
+  if not exists (select 1 from pg_policies where tablename = 'app_settings' and policyname = 'Public read app_settings') then
+    create policy "Public read app_settings" on app_settings for select using (true);
   end if;
 end $$;

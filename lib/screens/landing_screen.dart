@@ -19,8 +19,6 @@ class LandingScreen extends ConsumerStatefulWidget {
 }
 
 class _LandingScreenState extends ConsumerState<LandingScreen> {
-  int _tickerIndex = 0;
-  Timer? _tickerTimer;
   bool _gateShowing = false;
 
   void _maybeShowPermissionGate(bool required) {
@@ -38,22 +36,6 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
       );
       _gateShowing = false;
     });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _tickerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) {
-        setState(() => _tickerIndex++);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tickerTimer?.cancel();
-    super.dispose();
   }
 
   void _openJudgeTour() {
@@ -400,41 +382,13 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                 ),
               ),
 
-              // Live Civic Ticker Strip (M2)
-              Builder(
-                builder: (context) {
-                  final tickerItems = [
-                    '● LIVE  ·  $totalMergedReports merged citizen reports across ${state.reports.length} Bengaluru spots',
-                    '● VERIFIED  ·  $clearedCount blackspots cleared with GPS Before/After proof',
-                    '● ACTION  ·  ${state.drives.length} active community clean-up micro-drives open for RSVP',
-                  ];
-                  final currentMsg = tickerItems[_tickerIndex % tickerItems.length];
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: AppColors.emerald.withValues(alpha: 0.16),
-                      border: Border(
-                        top: BorderSide(color: AppColors.emeraldMint.withValues(alpha: 0.25)),
-                      ),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
-                      child: Text(
-                        currentMsg,
-                        key: ValueKey(currentMsg),
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.emeraldMint,
-                        ),
-                      ),
-                    ),
-                  );
-                },
+              // Live Civic Ticker Strip (isolated widget to avoid full-screen repaints)
+              _LiveCivicTicker(
+                items: [
+                  '● LIVE  ·  $totalMergedReports merged citizen reports across ${state.reports.length} Bengaluru spots',
+                  '● VERIFIED  ·  $clearedCount blackspots cleared with GPS Before/After proof',
+                  '● ACTION  ·  ${state.drives.length} active community clean-up micro-drives open for RSVP',
+                ],
               ),
 
               // Compliance Footer with Animated Logo
@@ -468,6 +422,63 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LiveCivicTicker extends StatefulWidget {
+  final List<String> items;
+  const _LiveCivicTicker({required this.items});
+
+  @override
+  State<_LiveCivicTicker> createState() => _LiveCivicTickerState();
+}
+
+class _LiveCivicTickerState extends State<_LiveCivicTicker> {
+  int _idx = 0;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (mounted) setState(() => _idx++);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentMsg = widget.items[_idx % widget.items.length];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.emerald.withValues(alpha: 0.16),
+        border: Border(
+          top: BorderSide(color: AppColors.emeraldMint.withValues(alpha: 0.25)),
+        ),
+      ),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: Text(
+          currentMsg,
+          key: ValueKey(currentMsg),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.emeraldMint,
+          ),
+        ),
       ),
     );
   }

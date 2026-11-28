@@ -318,6 +318,10 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     }
 
     setState(() => _isSubmitting = true);
+    final finalPhotoBytes =
+        (_privacyBlurred && (_aiResult?.containsFacesOrPlates ?? false))
+            ? await AiVisionService.applyPrivacyBlur(uploadBytes)
+            : uploadBytes;
     final result = await ref.read(nagarNexProvider.notifier).submitWasteReport(
           wardName: _wardName,
           placeName: _placeController.text.trim().isEmpty
@@ -328,7 +332,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
           wasteType: _selectedWasteType,
           severity: _selectedSeverity,
           aiConfidence: _aiResult?.confidence ?? 0.90,
-          photoBytes: uploadBytes,
+          photoBytes: finalPhotoBytes,
         );
 
     if (!mounted) return;

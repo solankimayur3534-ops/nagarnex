@@ -24,8 +24,15 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Daily AI quota cap reached (saving free tier).' });
   }
 
-  const ip = req.headers['x-forwarded-for']?.toString().split(',')[0] || 'local';
+  const ip = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 'local';
   const now = Date.now();
+  if (ipHits.size > 500) {
+    for (const [k, ts] of ipHits.entries()) {
+      const fresh = ts.filter((t) => now - t < RATE_WINDOW_MS);
+      if (fresh.length === 0) ipHits.delete(k);
+      else ipHits.set(k, fresh);
+    }
+  }
   const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
   if (hits.length >= MAX_PER_MIN) {
     return res.status(429).json({ error: 'Rate limit exceeded. Please wait a few seconds.' });
@@ -34,12 +41,21 @@ export default async function handler(req, res) {
   ipHits.set(ip, hits);
 
   const { mode = 'classify', imageBase64, beforeImageBase64 } = req.body || {};
-  if (!imageBase64) {
-    return res.status(400).json({ error: 'Missing imageBase64' });
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid imageBase64' });
   }
   if (imageBase64.length > 2_000_000) {
     return res.status(413).json({ error: 'Image too large; compress below 1.5MB.' });
   }
+
+  const safeJsonParse = (raw) => {
+    try {
+      const cleaned = String(raw || '').replace(/```json|```/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  };
 
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
@@ -59,30 +75,37 @@ export default async function handler(req, res) {
 
   try {
     if (geminiKey) {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: geminiParts }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              maxOutputTokens: 256,
-              temperature: 0.1,
-            },
-          }),
+      const models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
+      let lastStatus = 500;
+      let lastErr = 'Gemini API error';
+      for (const model of models) {
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: geminiParts }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                maxOutputTokens: 256,
+                temperature: 0.1,
+              },
+            }),
+          }
+        );
+        dailyCount += 1;
+        const data = await r.json();
+        if (r.ok) {
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parsed = safeJsonParse(text);
+          if (parsed) return res.status(200).json(parsed);
         }
-      );
-      dailyCount += 1;
-      const data = await r.json();
-      if (!r.ok) {
-        return res.status(r.status).json({
-          error: data?.error?.message || `Gemini API error (${r.status})`,
-        });
+        lastStatus = r.status;
+        lastErr = data?.error?.message || `Gemini API error (${r.status})`;
+        if (r.status !== 404) break;
       }
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return res.status(200).json(JSON.parse(text));
+      return res.status(lastStatus).json({ error: lastErr });
     }
 
     if (openRouterKey) {

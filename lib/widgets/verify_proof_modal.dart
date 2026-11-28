@@ -21,7 +21,7 @@ class VerifyProofModal extends ConsumerStatefulWidget {
 
 class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
   Uint8List? _afterBytes;
-  bool _demoGpsOverride = true;
+  bool _demoGpsOverride = false;
   bool _isChecking = false;
   double? _distanceMeters;
   BeforeAfterVerificationResult? _aiResult;
@@ -47,7 +47,15 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
         try {
           final pos = await Geolocator.getCurrentPosition();
           verifyPoint = LatLng(pos.latitude, pos.longitude);
-        } catch (_) {}
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _isChecking = false;
+            _error =
+                'Live GPS unavailable. Enable location permission or toggle Demo Mode Override.';
+          });
+          return;
+        }
       }
 
       final dist = GeoUtils.distanceMeters(

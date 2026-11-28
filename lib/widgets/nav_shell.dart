@@ -73,15 +73,25 @@ class _NavShellState extends ConsumerState<NavShell> {
       nagarNexProvider.select((s) => s.permissionGateRequired),
       (_, next) => _maybeShowPermissionGate(next),
     );
-    final appState = ref.watch(nagarNexProvider);
-    if (appState.permissionGateRequired) {
+    final gateRequired = ref.watch(
+      nagarNexProvider.select((s) => s.permissionGateRequired),
+    );
+    if (gateRequired) {
       _maybeShowPermissionGate(true);
     }
+    final currentCity = ref.watch(
+      nagarNexProvider.select((s) => s.currentCity),
+    );
+    final civicPoints = ref.watch(
+      nagarNexProvider.select((s) => s.profile.civicPoints),
+    );
+    final adminRole = ref.watch(
+      nagarNexProvider.select((s) => s.adminRole),
+    );
 
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 1024;
     final isMobile = width < 600;
-    final profile = appState.profile;
     final currentRoute = widget.currentRoute;
     final child = widget.child;
 
@@ -137,7 +147,7 @@ class _NavShellState extends ConsumerState<NavShell> {
                           border: Border.all(color: AppColors.border),
                         ),
                         child: Text(
-                          appState.currentCity,
+                          currentCity,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -218,7 +228,7 @@ class _NavShellState extends ConsumerState<NavShell> {
                       size: 14, color: AppColors.forest),
                   const SizedBox(width: 3),
                   Text(
-                    '${profile.civicPoints}',
+                    '$civicPoints',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
@@ -363,7 +373,7 @@ class _NavShellState extends ConsumerState<NavShell> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'NagarNex • Role: ${appState.adminRole} • Managed by Municipal & National Civic Grid',
+                        'NagarNex • Role: $adminRole • Managed by Municipal & National Civic Grid',
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 11, color: AppColors.inkMuted),

@@ -82,6 +82,33 @@ class AiVisionService {
     return rawBytes;
   }
 
+  /// Applies a real pixel-level Gaussian blur to strip identifiable faces or
+  /// vehicle license plates before uploading to public storage.
+  static Future<Uint8List> applyPrivacyBlur(Uint8List pngBytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(pngBytes);
+      final frame = await codec.getNextFrame();
+      final src = frame.image;
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+      final paint = ui.Paint()
+        ..imageFilter = ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0);
+      canvas.drawImage(src, ui.Offset.zero, paint);
+      final picture = recorder.endRecording();
+      final blurred = await picture.toImage(src.width, src.height);
+      final byteData =
+          await blurred.toByteData(format: ui.ImageByteFormat.png);
+      src.dispose();
+      blurred.dispose();
+      picture.dispose();
+      codec.dispose();
+      if (byteData != null) {
+        return byteData.buffer.asUint8List();
+      }
+    } catch (_) {}
+    return pngBytes;
+  }
+
   /// Classifies a waste photo via the secure backend proxy (`/api/vision`)
   /// first, or direct dev key if configured, with a deterministic demo fallback.
   static Future<WasteClassificationResult> classifyWasteImage({
@@ -154,7 +181,7 @@ class AiVisionService {
       Uint8List imageBytes) async {
     try {
       final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$runtimeGeminiKey',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$runtimeGeminiKey',
       );
       final b64 = base64Encode(imageBytes);
       final response = await http
@@ -289,6 +316,7 @@ class AiVisionService {
     Uint8List? beforeBytes,
     String? beforeUrl,
   }) async {
+    String proxyError = 'Live AI verification service unavailable.';
     try {
       final proxyUri = Uri.parse(backendProxyUrl);
       final proxyRes = await http
@@ -302,7 +330,7 @@ class AiVisionService {
                 'beforeImageBase64': base64Encode(beforeBytes),
             }),
           )
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 15));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
         return BeforeAfterVerificationResult(
@@ -313,22 +341,28 @@ class AiVisionService {
           usedLiveAi: true,
         );
       }
-    } catch (_) {}
+      try {
+        final errBody = jsonDecode(proxyRes.body) as Map<String, dynamic>;
+        proxyError = errBody['error']?.toString() ?? 'HTTP ${proxyRes.statusCode}';
+      } catch (_) {
+        proxyError = 'AI proxy HTTP ${proxyRes.statusCode}';
+      }
+    } catch (e) {
+      proxyError = 'Live AI unreachable: $e';
+    }
 
     if (runtimeGeminiKey.isEmpty) {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
-      return const BeforeAfterVerificationResult(
-        cleared: true,
-        matchScore: 95,
-        summary:
-            'After-photo shows cleared roadside surface matching the original spot.',
+      return BeforeAfterVerificationResult(
+        cleared: false,
+        matchScore: 0,
+        summary: 'Live AI verification unavailable: $proxyError',
         usedLiveAi: false,
       );
     }
 
     try {
       final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$runtimeGeminiKey',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=$runtimeGeminiKey',
       );
       final b64 = base64Encode(afterBytes);
       final response = await http
