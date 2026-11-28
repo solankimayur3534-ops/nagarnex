@@ -108,8 +108,9 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       if (!mounted) return;
       setState(() {
         _aiResult = res;
-        if (!res.hasError && res.isWaste) {
-          _selectedWasteType = res.wasteType;
+        if (!res.hasError) {
+          _selectedWasteType =
+              res.isWaste ? res.wasteType : 'No Waste / Clean';
           _selectedSeverity = res.severity;
         }
         _privacyBlurred = !res.containsFacesOrPlates;
@@ -159,8 +160,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     setState(() {
       _croppedPhotoBytes = targetBytes;
       _aiResult = res;
-      if (!res.hasError && res.isWaste) {
-        _selectedWasteType = res.wasteType;
+      if (!res.hasError) {
+        _selectedWasteType = res.isWaste ? res.wasteType : 'No Waste / Clean';
         _selectedSeverity = res.severity;
       }
       _privacyBlurred = !res.containsFacesOrPlates;
@@ -294,6 +295,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Capture or upload a photo first.')),
+      );
+      return;
+    }
+    if (_selectedWasteType == 'No Waste / Clean') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.emeraldDark,
+          content: Text(
+              'Area marked as "No Waste / Clean" — no garbage blackspot report needed!'),
+        ),
       );
       return;
     }
@@ -667,7 +678,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       children: [
                         Text(
                           _aiResult!.hasError
-                              ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check GEMINI_API_KEY in Vercel & Redeploy)'
+                              ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check NVIDIA_NIM_API_KEY / GEMINI_API_KEY in Vercel & Redeploy)'
                               : (_aiResult!.isWaste
                                   ? 'AI (${_aiResult!.providerLabel}): ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
                                   : '⚠️ Rejected by ${_aiResult!.providerLabel}: Not a street waste photo — ${_aiResult!.rejectionReason}'),
@@ -719,13 +730,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   builder: (context, constraints) {
                     final categoryField = DropdownButtonFormField<String>(
                       initialValue: _selectedWasteType,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Waste Category',
                         border: OutlineInputBorder(),
                       ),
                       items: AppConstants.wasteTypes
-                          .map(
-                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .map((t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(t, overflow: TextOverflow.ellipsis),
+                              ))
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedWasteType = v);
@@ -733,6 +747,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                     );
                     final severityField = DropdownButtonFormField<String>(
                       initialValue: _selectedSeverity,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Severity',
                         border: OutlineInputBorder(),

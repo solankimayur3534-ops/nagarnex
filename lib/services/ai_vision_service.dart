@@ -136,7 +136,7 @@ class AiVisionService {
               'imageBase64': base64Encode(imageBytes),
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
         final providerName =
@@ -218,7 +218,7 @@ class AiVisionService {
               }
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;
@@ -300,9 +300,11 @@ class AiVisionService {
               ? ''
               : 'Image does not appear to show street waste or garbage.'),
       summary: summary,
-      wasteType: AppConstants.wasteTypes.contains(wasteType)
-          ? wasteType
-          : 'Mixed/Debris',
+      wasteType: !isWaste
+          ? 'No Waste / Clean'
+          : (AppConstants.wasteTypes.contains(wasteType)
+              ? wasteType
+              : 'Mixed/Debris'),
       severity:
           AppConstants.severities.contains(severity) ? severity : 'Medium',
       confidence: (parsed['confidence'] as num?)?.toDouble() ?? 0.91,
@@ -334,7 +336,7 @@ class AiVisionService {
                 'beforeImageBase64': base64Encode(beforeBytes),
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
         return BeforeAfterVerificationResult(
@@ -396,7 +398,7 @@ class AiVisionService {
               }
             }),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body) as Map<String, dynamic>;

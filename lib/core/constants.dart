@@ -79,6 +79,7 @@ class AppConstants {
     'Glass',
     'E-Waste',
     'Mixed/Debris',
+    'No Waste / Clean',
   ];
 
   static const List<String> severities = ['High', 'Medium', 'Low'];

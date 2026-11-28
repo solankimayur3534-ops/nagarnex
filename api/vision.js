@@ -56,7 +56,14 @@ export default async function handler(req, res) {
         const start = cleaned.indexOf('{');
         const end = cleaned.lastIndexOf('}');
         if (start !== -1 && end > start) {
-          return JSON.parse(cleaned.slice(start, end + 1));
+          let slice = cleaned.slice(start, end + 1);
+          try {
+            return JSON.parse(slice);
+          } catch {
+            // Repair missing opening quotes before string values (e.g. `"key": Value",`)
+            slice = slice.replace(/:\s*([A-Za-z][^"\n{}]*)"/g, ': "$1"');
+            return JSON.parse(slice);
+          }
         }
         return null;
       }
@@ -72,7 +79,7 @@ export default async function handler(req, res) {
   const prompt =
     mode === 'verify'
       ? 'Compare the street waste Before and After photo(s). Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
-      : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is unrelated (e.g. landscape, poster, meme, screenshot, selfie, clean road), set "is_waste": false and give a short "rejection_reason". Always include a crisp 1-line "summary" describing what is actually visible in the image. Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "summary" (string, max 18 words describing the image), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
+      : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is clean or unrelated (e.g. clean road, landscape, poster, meme, screenshot, selfie), set "is_waste": false, "waste_type": "No Waste / Clean", and give a short "rejection_reason". Always include a crisp 1-line "summary" describing what is actually visible in the image. Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "summary" (string, max 18 words describing the image), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"|"No Waste / Clean"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
 
   try {
     // 1. Priority: NVIDIA NIM Vision (nvidia/nemotron-3.5-super-vl-120b-a12b)
@@ -95,7 +102,9 @@ export default async function handler(req, res) {
           messages: [{ role: 'user', content: nimContent }],
           max_tokens: 1024,
           temperature: 0.1,
+          stream: false,
         }),
+        signal: AbortSignal.timeout(22000),
       });
       dailyCount += 1;
       const nimData = await nimRes.json();
