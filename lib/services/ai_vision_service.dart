@@ -139,7 +139,11 @@ class AiVisionService {
           .timeout(const Duration(seconds: 15));
       if (proxyRes.statusCode == 200) {
         final parsed = jsonDecode(proxyRes.body) as Map<String, dynamic>;
-        final res = _parseResult(parsed, 'Gemini Vision AI');
+        final providerName =
+            parsed['provider']?.toString().trim().isNotEmpty == true
+                ? parsed['provider'].toString()
+                : 'Live Vision AI';
+        final res = _parseResult(parsed, providerName);
         _classifyCache[cacheKey] = res;
         return res;
       }

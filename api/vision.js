@@ -1,11 +1,10 @@
 // Vercel Serverless Proxy for NagarNex Vision AI
-// Keeps GEMINI_API_KEY / OPENROUTER_API_KEY 100% secure on the server.
-// Set GEMINI_API_KEY (or OPENROUTER_API_KEY) in Vercel Project -> Settings -> Environment Variables.
+// Priority: 1. NVIDIA NIM (nemotron-3.5-super-vl-120b-a12b) -> 2. Gemini -> 3. OpenRouter
+// Set NVIDIA_NIM_API_KEY (and optionally GEMINI_API_KEY / OPENROUTER_API_KEY) in Vercel Env Vars.
 
-// In-memory rate & daily quota guard to protect Gemini free-tier limits
 const RATE_WINDOW_MS = 60_000;
-const MAX_PER_MIN = 12;
-const MAX_PER_DAY = 200;
+const MAX_PER_MIN = 40; // 40 RPM setup for NVIDIA NIM
+const MAX_PER_DAY = 2000;
 const ipHits = new Map();
 let dayKey = new Date().toISOString().slice(0, 10);
 let dailyCount = 0;
@@ -21,7 +20,7 @@ export default async function handler(req, res) {
     dailyCount = 0;
   }
   if (dailyCount >= MAX_PER_DAY) {
-    return res.status(429).json({ error: 'Daily AI quota cap reached (saving free tier).' });
+    return res.status(429).json({ error: 'Daily AI quota cap reached.' });
   }
 
   const ip = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() || 'local';
@@ -35,7 +34,7 @@ export default async function handler(req, res) {
   }
   const hits = (ipHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
   if (hits.length >= MAX_PER_MIN) {
-    return res.status(429).json({ error: 'Rate limit exceeded. Please wait a few seconds.' });
+    return res.status(429).json({ error: 'Rate limit exceeded (40 RPM). Please wait a few seconds.' });
   }
   hits.push(now);
   ipHits.set(ip, hits);
@@ -51,12 +50,22 @@ export default async function handler(req, res) {
   const safeJsonParse = (raw) => {
     try {
       const cleaned = String(raw || '').replace(/```json|```/g, '').trim();
-      return JSON.parse(cleaned);
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start !== -1 && end > start) {
+          return JSON.parse(cleaned.slice(start, end + 1));
+        }
+        return null;
+      }
     } catch {
       return null;
     }
   };
 
+  const nimKey = process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const openRouterKey = process.env.OPENROUTER_API_KEY;
 
@@ -65,16 +74,53 @@ export default async function handler(req, res) {
       ? 'Compare the street waste Before and After photo(s). Return ONLY valid JSON: {"cleared": boolean, "match_score": integer 0-100, "summary": string}.'
       : 'Analyze this image for a Bengaluru civic waste reporting app. First check if it actually shows street garbage, litter, overflowing bins, plastic/food/e-waste, or debris. If it is unrelated (e.g. landscape, poster, meme, screenshot, selfie, clean road), set "is_waste": false and give a short "rejection_reason". Always include a crisp 1-line "summary" describing what is actually visible in the image. Return ONLY valid JSON with keys: "is_waste" (boolean), "rejection_reason" (string), "summary" (string, max 18 words describing the image), "waste_type" ("Plastic"|"Wet/Food"|"Glass"|"E-Waste"|"Mixed/Debris"), "severity" ("High"|"Medium"|"Low"), "confidence" (0.0 to 1.0), "contains_faces_or_plates" (boolean).';
 
-  const geminiParts = [
-    { text: prompt },
-    ...(beforeImageBase64
-      ? [{ inline_data: { mime_type: 'image/png', data: beforeImageBase64 } }]
-      : []),
-    { inline_data: { mime_type: 'image/png', data: imageBase64 } },
-  ];
-
   try {
+    // 1. Priority: NVIDIA NIM Vision (nvidia/nemotron-3.5-super-vl-120b-a12b)
+    if (nimKey) {
+      const nimContent = [
+        { type: 'text', text: prompt },
+        ...(beforeImageBase64
+          ? [{ type: 'image_url', image_url: { url: `data:image/png;base64,${beforeImageBase64}` } }]
+          : []),
+        { type: 'image_url', image_url: { url: `data:image/png;base64,${imageBase64}` } },
+      ];
+      const nimRes = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${nimKey}`,
+        },
+        body: JSON.stringify({
+          model: 'nvidia/nemotron-3.5-super-vl-120b-a12b',
+          messages: [{ role: 'user', content: nimContent }],
+          max_tokens: 1024,
+          temperature: 0.1,
+        }),
+      });
+      dailyCount += 1;
+      const nimData = await nimRes.json();
+      if (nimRes.ok) {
+        const msg = nimData?.choices?.[0]?.message;
+        const parsed = safeJsonParse(msg?.content) || safeJsonParse(msg?.reasoning_content);
+        if (parsed) {
+          return res.status(200).json({ ...parsed, provider: 'NVIDIA Nemotron VL 120B' });
+        }
+      } else if (!geminiKey && !openRouterKey) {
+        return res.status(nimRes.status).json({
+          error: nimData?.error?.message || nimData?.detail || `NVIDIA NIM error (${nimRes.status})`,
+        });
+      }
+    }
+
+    // 2. Fallback: Google Gemini
     if (geminiKey) {
+      const geminiParts = [
+        { text: prompt },
+        ...(beforeImageBase64
+          ? [{ inline_data: { mime_type: 'image/png', data: beforeImageBase64 } }]
+          : []),
+        { inline_data: { mime_type: 'image/png', data: imageBase64 } },
+      ];
       const models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
       let lastStatus = 500;
       let lastErr = 'Gemini API error';
@@ -99,15 +145,18 @@ export default async function handler(req, res) {
         if (r.ok) {
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           const parsed = safeJsonParse(text);
-          if (parsed) return res.status(200).json(parsed);
+          if (parsed) return res.status(200).json({ ...parsed, provider: 'Gemini Vision AI' });
         }
         lastStatus = r.status;
         lastErr = data?.error?.message || `Gemini API error (${r.status})`;
         if (r.status !== 404) break;
       }
-      return res.status(lastStatus).json({ error: lastErr });
+      if (!openRouterKey) {
+        return res.status(lastStatus).json({ error: lastErr });
+      }
     }
 
+    // 3. Fallback: OpenRouter
     if (openRouterKey) {
       const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -132,9 +181,8 @@ export default async function handler(req, res) {
         }),
       });
       const data = await r.json();
-      const raw = data?.choices?.[0]?.message?.content || '{}';
-      const cleaned = raw.replace(/```json|```/g, '').trim();
-      return res.status(200).json(JSON.parse(cleaned));
+      const parsed = safeJsonParse(data?.choices?.[0]?.message?.content);
+      if (parsed) return res.status(200).json({ ...parsed, provider: 'OpenRouter Vision' });
     }
 
     return res.status(503).json({ error: 'No backend AI key configured' });
