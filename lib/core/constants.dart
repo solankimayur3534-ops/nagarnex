@@ -63,6 +63,10 @@ class AppConstants {
   static const String supabaseAnonKey =
       String.fromEnvironment('SUPABASE_ANON_KEY');
   static const String geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
+  static const String _envAdminPasscode =
+      String.fromEnvironment('ADMIN_PASSCODE');
+  static String get adminPasscode =>
+      _envAdminPasscode.isNotEmpty ? _envAdminPasscode : 'NagarNex@2026';
   static const String liveBoardUrl = String.fromEnvironment(
     'NAGARNEX_PUBLIC_URL',
     defaultValue: 'https://nagarnex.vercel.app/board',

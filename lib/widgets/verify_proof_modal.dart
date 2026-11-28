@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import '../core/camera_capture_helper.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
 import '../models/waste_report.dart';
@@ -27,25 +28,66 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
   BeforeAfterVerificationResult? _aiResult;
   String? _error;
 
-  Future<void> _pickAfterPhoto() async {
+  Future<void> _pickAfterPhoto([ImageSource source = ImageSource.camera]) async {
+    if (_isChecking) return;
     setState(() {
       _error = null;
       _aiResult = null;
     });
 
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
+      final enforceCameraOnly = ref.read(nagarNexProvider).enforceCameraOnly;
+      ImageSource effectiveSource = enforceCameraOnly ? ImageSource.camera : source;
+      Uint8List? stripped;
 
-      setState(() => _isChecking = true);
-      final rawBytes = await picked.readAsBytes();
-      final stripped = await AiVisionService.stripExifAndCompress(rawBytes);
+      if (effectiveSource == ImageSource.camera) {
+        final webCapture =
+            await openWebLiveCamera(allowGallery: !enforceCameraOnly);
+        if (!mounted) return;
+        if (webCapture.status == WebCameraCaptureStatus.captured &&
+            webCapture.bytes != null) {
+          stripped = Uint8List.fromList(webCapture.bytes!);
+        } else if (webCapture.status == WebCameraCaptureStatus.cancelled) {
+          return;
+        } else if (webCapture.status == WebCameraCaptureStatus.openGallery &&
+            !enforceCameraOnly) {
+          effectiveSource = ImageSource.gallery;
+        }
+      }
+
+      if (stripped == null) {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(
+          source: effectiveSource,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 82,
+        );
+        if (picked == null) return;
+        setState(() => _isChecking = true);
+        final rawBytes = await picked.readAsBytes();
+        stripped = await AiVisionService.stripExifAndCompress(rawBytes);
+      } else {
+        setState(() => _isChecking = true);
+      }
 
       LatLng verifyPoint = LatLng(widget.report.lat, widget.report.lng);
       if (!_demoGpsOverride) {
         try {
-          final pos = await Geolocator.getCurrentPosition();
+          var perm = await Geolocator.checkPermission();
+          if (perm == LocationPermission.denied) {
+            perm = await Geolocator.requestPermission();
+          }
+          if (perm == LocationPermission.denied ||
+              perm == LocationPermission.deniedForever) {
+            throw Exception('Location denied');
+          }
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 8),
+            ),
+          );
           verifyPoint = LatLng(pos.latitude, pos.longitude);
         } catch (_) {
           if (!mounted) return;
@@ -124,11 +166,12 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
 
     return Dialog(
       backgroundColor: AppColors.surface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 660),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(18),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,13 +249,15 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
                     Expanded(
                       child: _SplitFrame(
                         badge: _aiResult != null
-                            ? 'AI Visual Match: ${_aiResult!.matchScore}%'
-                            : 'Upload After Photo',
+                            ? (_aiResult!.usedLiveAi && !_aiResult!.hasError
+                                ? 'AI Visual Match: ${_aiResult!.matchScore}%'
+                                : 'Not Detected by AI')
+                            : 'Capture After Photo',
                         footer: 'AFTER — Cleared Proof',
                         bytes: _afterBytes,
-                        hint: 'Tap to Upload After Photo',
+                        hint: 'Tap to Capture After Photo',
                         isAfter: true,
-                        onTap: _pickAfterPhoto,
+                        onTap: () => _pickAfterPhoto(ImageSource.camera),
                       ),
                     ),
                   ],
@@ -235,7 +280,9 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
                     child: _AuditMetaBox(
                       title: 'AI Visual Check',
                       sub: _aiResult != null
-                          ? '${_aiResult!.matchScore}% cleared'
+                          ? (_aiResult!.usedLiveAi && !_aiResult!.hasError
+                              ? '${_aiResult!.matchScore}% cleared'
+                              : 'Not Detected by AI')
                           : 'Awaiting After photo',
                     ),
                   ),
@@ -290,16 +337,18 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        const Expanded(
-                          child: Text(
-                            'Neighbor Consensus Verification',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.ink,
-                            ),
+                        const Text(
+                          'Neighbor Consensus Verification',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.ink,
                           ),
                         ),
                         Container(
@@ -357,52 +406,71 @@ class _VerifyProofModalState extends ConsumerState<VerifyProofModal> {
                 ),
               ],
               const SizedBox(height: 16),
-              Row(
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton.icon(
-                      onPressed: _isChecking
-                          ? null
-                          : (_afterBytes == null
-                              ? _pickAfterPhoto
-                              : _confirmClosure),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.emeraldDark,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      icon: Icon(_afterBytes == null
-                          ? Icons.upload_rounded
-                          : Icons.check_circle_outline_rounded),
-                      label: Text(
-                        _afterBytes == null
-                            ? 'Upload After Photo'
-                            : 'Confirm Cleared ✓',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                  FilledButton.icon(
+                    onPressed: _isChecking
+                        ? null
+                        : (_afterBytes == null
+                            ? () => _pickAfterPhoto(ImageSource.camera)
+                            : _confirmClosure),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.emeraldDark,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
+                    icon: Icon(_afterBytes == null
+                        ? Icons.camera_alt_rounded
+                        : Icons.check_circle_outline_rounded),
+                    label: Text(
+                      _afterBytes == null
+                          ? 'Camera After Photo'
+                          : 'Confirm Cleared ✓',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(false),
+                  if (_afterBytes == null &&
+                      !ref.watch(nagarNexProvider).enforceCameraOnly)
+                    OutlinedButton.icon(
+                      onPressed: _isChecking
+                          ? null
+                          : () => _pickAfterPhoto(ImageSource.gallery),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.dangerSoft,
-                        foregroundColor: AppColors.danger,
-                        side: const BorderSide(color: Color(0xFFFECACA)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        foregroundColor: AppColors.ink,
+                        side: const BorderSide(color: AppColors.border),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Text(
-                        'Still Uncleared ×',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      icon: const Icon(Icons.upload_rounded, size: 18),
+                      label: const Text(
+                        'Upload Gallery',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
+                    ),
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.dangerSoft,
+                      foregroundColor: AppColors.danger,
+                      side: const BorderSide(color: Color(0xFFFECACA)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Still Uncleared ×',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -468,7 +536,7 @@ class _SplitFrame extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (bytes != null)
-              Image.memory(bytes!, fit: BoxFit.cover)
+              Image.memory(bytes!, fit: BoxFit.cover, cacheWidth: 700)
             else
               Center(
                 child: Column(

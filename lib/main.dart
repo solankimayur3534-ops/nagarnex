@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants.dart';
+import 'screens/bi_dashboard_screen.dart';
 import 'screens/central_hub_screen.dart';
 import 'screens/drives_screen.dart';
 import 'screens/intake_screen.dart';
@@ -63,6 +64,10 @@ final GoRouter _router = GoRouter(
         GoRoute(
           path: '/central',
           builder: (context, state) => const CentralHubScreen(),
+        ),
+        GoRoute(
+          path: '/bi-dashboard',
+          builder: (context, state) => const BiDashboardScreen(),
         ),
       ],
     ),

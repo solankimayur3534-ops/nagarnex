@@ -146,24 +146,224 @@
     };
     window.nnCheckCameraPermission = async function () {
       try {
+        if (window._nnCameraGrantedSession) return true;
         if (navigator.permissions && navigator.permissions.query) {
           var status = await navigator.permissions.query({ name: 'camera' });
-          return status.state === 'granted';
+          if (status.state === 'granted') return true;
+          if (status.state === 'denied') return false;
+        }
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+          var devices = await navigator.mediaDevices.enumerateDevices();
+          return devices.some(function (d) { return d.kind === 'videoinput' && d.label; });
         }
         return false;
       } catch (_) {
-        return false;
+        return Boolean(window._nnCameraGrantedSession);
       }
     };
     window.nnRequestCameraPermission = async function () {
       try {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
         var stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        window._nnCameraGrantedSession = true;
         stream.getTracks().forEach(function (t) { t.stop(); });
         return true;
       } catch (_) {
         return false;
       }
+    };
+    window.nnCompressImageBytes = async function (uint8Bytes, maxDim, quality) {
+      try {
+        var blob = new Blob([uint8Bytes]);
+        var url = URL.createObjectURL(blob);
+        try {
+          var img = new Image();
+          await new Promise(function (resolve, reject) {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = url;
+          });
+          var iw = img.naturalWidth || img.width || 1;
+          var ih = img.naturalHeight || img.height || 1;
+          var limit = maxDim || 768;
+          var scale = Math.min(1, limit / Math.max(iw, ih));
+          var w = Math.max(1, Math.round(iw * scale));
+          var h = Math.max(1, Math.round(ih * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          var dataUrl = canvas.toDataURL('image/jpeg', quality || 0.82);
+          canvas.width = 0;
+          canvas.height = 0;
+          return dataUrl.split(',')[1] || null;
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      } catch (_) {
+        return null;
+      }
+    };
+    window.nnOpenLiveCamera = function (allowGallery) {
+      return new Promise(function (resolve) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          resolve('FALLBACK');
+          return;
+        }
+        var old = document.getElementById('nn-cam-overlay');
+        if (old) old.remove();
+
+        var facing = 'environment';
+        var activeStream = null;
+        var finished = false;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'nn-cam-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#021610;display:flex;flex-direction:column;font-family:system-ui,-apple-system,sans-serif;';
+
+        var topBar = document.createElement('div');
+        topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(4,31,23,0.88);color:#fff;';
+
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.textContent = '✕ Close';
+        closeBtn.style.cssText = 'border:1px solid rgba(255,255,255,0.28);background:rgba(255,255,255,0.12);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;';
+
+        var titleEl = document.createElement('span');
+        titleEl.textContent = 'Live Camera Capture';
+        titleEl.style.cssText = 'font-size:14px;font-weight:700;color:#A7F3D0;';
+
+        var flipBtn = document.createElement('button');
+        flipBtn.type = 'button';
+        flipBtn.textContent = '↻ Flip';
+        flipBtn.style.cssText = 'border:1px solid rgba(255,255,255,0.28);background:rgba(255,255,255,0.12);color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;';
+
+        topBar.appendChild(closeBtn);
+        topBar.appendChild(titleEl);
+        topBar.appendChild(flipBtn);
+
+        var videoWrap = document.createElement('div');
+        videoWrap.style.cssText = 'flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;';
+
+        var video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+        video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        videoWrap.appendChild(video);
+
+        var statusEl = document.createElement('div');
+        statusEl.textContent = 'Starting camera...';
+        statusEl.style.cssText = 'position:absolute;color:#fff;font-size:13px;font-weight:600;background:rgba(0,0,0,0.55);padding:8px 14px;border-radius:14px;';
+        videoWrap.appendChild(statusEl);
+
+        var bottomBar = document.createElement('div');
+        bottomBar.style.cssText = 'display:flex;align-items:center;justify-content:space-around;padding:18px 16px calc(18px + env(safe-area-inset-bottom, 0px));background:rgba(4,31,23,0.94);gap:12px;';
+
+        var galleryBtn = document.createElement('button');
+        galleryBtn.type = 'button';
+        galleryBtn.textContent = 'Gallery';
+        galleryBtn.style.cssText = 'border:1px solid rgba(255,255,255,0.3);background:transparent;color:#fff;padding:10px 16px;border-radius:22px;font-size:13px;font-weight:700;cursor:pointer;' + (allowGallery ? '' : 'visibility:hidden;');
+
+        var shutterBtn = document.createElement('button');
+        shutterBtn.type = 'button';
+        shutterBtn.setAttribute('aria-label', 'Capture Photo');
+        shutterBtn.disabled = true;
+        shutterBtn.style.cssText = 'width:68px;height:68px;border-radius:50%;border:4px solid #A7F3D0;background:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.4);opacity:0.5;';
+
+        var nativeCamBtn = document.createElement('button');
+        nativeCamBtn.type = 'button';
+        nativeCamBtn.textContent = 'Device Cam';
+        nativeCamBtn.style.cssText = 'border:1px solid rgba(255,255,255,0.3);background:transparent;color:#cbd5e1;padding:10px 14px;border-radius:22px;font-size:12px;font-weight:600;cursor:pointer;';
+
+        bottomBar.appendChild(galleryBtn);
+        bottomBar.appendChild(shutterBtn);
+        bottomBar.appendChild(nativeCamBtn);
+
+        overlay.appendChild(topBar);
+        overlay.appendChild(videoWrap);
+        overlay.appendChild(bottomBar);
+        document.body.appendChild(overlay);
+
+        function stopStream() {
+          if (activeStream) {
+            try { activeStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
+            activeStream = null;
+          }
+          try { video.srcObject = null; } catch (_) {}
+        }
+
+        function cleanup(result) {
+          if (finished) return;
+          finished = true;
+          stopStream();
+          if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+          resolve(result);
+        }
+
+        async function startCamera(preferredFacing) {
+          stopStream();
+          shutterBtn.disabled = true;
+          shutterBtn.style.opacity = '0.5';
+          statusEl.style.display = 'block';
+          statusEl.textContent = 'Starting camera...';
+          try {
+            var constraints = {
+              video: {
+                facingMode: { ideal: preferredFacing },
+                width: { ideal: 1280 },
+                height: { ideal: 960 }
+              },
+              audio: false
+            };
+            try {
+              activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (_) {
+              activeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            }
+            window._nnCameraGrantedSession = true;
+            if (finished) { stopStream(); return; }
+            video.srcObject = activeStream;
+            await video.play().catch(function () {});
+            statusEl.style.display = 'none';
+            shutterBtn.disabled = false;
+            shutterBtn.style.opacity = '1';
+          } catch (_) {
+            cleanup('FALLBACK');
+          }
+        }
+
+        closeBtn.onclick = function () { cleanup('CANCEL'); };
+        galleryBtn.onclick = function () { cleanup('GALLERY'); };
+        nativeCamBtn.onclick = function () { cleanup('FALLBACK'); };
+        flipBtn.onclick = function () {
+          facing = (facing === 'environment') ? 'user' : 'environment';
+          startCamera(facing);
+        };
+        shutterBtn.onclick = function () {
+          if (shutterBtn.disabled) return;
+          var vw = video.videoWidth || 640;
+          var vh = video.videoHeight || 480;
+          var scale = Math.min(1, 800 / Math.max(vw, vh));
+          var cw = Math.max(1, Math.round(vw * scale));
+          var ch = Math.max(1, Math.round(vh * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw;
+          canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, cw, ch);
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          canvas.width = 0;
+          canvas.height = 0;
+          var b64 = (dataUrl.split(',')[1] || '');
+          cleanup(b64 ? ('OK:' + b64) : 'FALLBACK');
+        };
+
+        startCamera(facing);
+      });
     };
     window.addEventListener('flutter-first-frame', function () {
       var s = document.getElementById('nn-splash');

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import '../core/camera_capture_helper.dart';
 import '../core/city_locator.dart';
 import '../core/constants.dart';
 import '../core/geo_utils.dart';
@@ -54,6 +57,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _recoverLostAndroidImage();
+      if (!mounted) return;
       final s = ref.read(nagarNexProvider);
       if (s.currentUserLocation != null &&
           AppConstants.isInsideBengaluru(s.currentUserLocation!)) {
@@ -73,68 +78,132 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     });
   }
 
+  Future<void> _recoverLostAndroidImage() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final picker = ImagePicker();
+      final response = await picker.retrieveLostData();
+      if (response.isEmpty || response.file == null) return;
+      final raw = await response.file!.readAsBytes();
+      if (!mounted) return;
+      await _processPickedImageBytes(raw, alreadyCompressed: false);
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
+    _intakeMapCtrl.dispose();
     _transformCtrl.dispose();
     _placeController.dispose();
     super.dispose();
   }
 
+  Future<void> _processPickedImageBytes(
+    Uint8List bytes, {
+    required bool alreadyCompressed,
+  }) async {
+    final stripped = alreadyCompressed
+        ? bytes
+        : await AiVisionService.stripExifAndCompress(bytes);
+
+    if (!mounted) return;
+    _transformCtrl.value = Matrix4.identity();
+    setState(() {
+      _rawPhotoBytes = stripped;
+      _croppedPhotoBytes = null;
+      _exifStripped = true;
+      _aiResult = null;
+      _privacyBlurred = false;
+      _isAnalyzing = true;
+    });
+
+    final res = await AiVisionService.classifyWasteImage(
+      imageBytes: stripped,
+      hintPlace: _placeController.text,
+    );
+    if (!mounted) return;
+    setState(() {
+      _aiResult = res;
+      if (!res.hasError) {
+        _selectedWasteType =
+            res.isWaste ? res.wasteType : 'No Waste / Clean';
+        _selectedSeverity = res.severity;
+      }
+      _privacyBlurred = !res.containsFacesOrPlates;
+      _isAnalyzing = false;
+    });
+  }
+
   Future<void> _pickPhoto(ImageSource source) async {
+    if (_isAnalyzing) return;
     try {
+      final enforceCameraOnly = ref.read(nagarNexProvider).enforceCameraOnly;
+      ImageSource effectiveSource = source;
+
+      if (source == ImageSource.camera) {
+        final webCapture =
+            await openWebLiveCamera(allowGallery: !enforceCameraOnly);
+        if (!mounted) return;
+        if (webCapture.status == WebCameraCaptureStatus.captured &&
+            webCapture.bytes != null) {
+          await _processPickedImageBytes(
+            Uint8List.fromList(webCapture.bytes!),
+            alreadyCompressed: true,
+          );
+          return;
+        }
+        if (webCapture.status == WebCameraCaptureStatus.cancelled) {
+          return;
+        }
+        if (webCapture.status == WebCameraCaptureStatus.openGallery &&
+            !enforceCameraOnly) {
+          effectiveSource = ImageSource.gallery;
+        }
+      }
+
       final picker = ImagePicker();
-      final picked = await picker.pickImage(source: source);
+      final picked = await picker.pickImage(
+        source: effectiveSource,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 82,
+      );
       if (picked == null) return;
 
       final raw = await picked.readAsBytes();
-      final stripped = await AiVisionService.stripExifAndCompress(raw);
-
-      if (!mounted) return;
-      _transformCtrl.value = Matrix4.identity();
-      setState(() {
-        _rawPhotoBytes = stripped;
-        _croppedPhotoBytes = null;
-        _exifStripped = true;
-        _aiResult = null;
-        _privacyBlurred = false;
-        _isAnalyzing = true;
-      });
-
-      // Automatically classify the first photo and pre-fill parameters
-      final res = await AiVisionService.classifyWasteImage(
-        imageBytes: stripped,
-        hintPlace: _placeController.text,
-      );
-      if (!mounted) return;
-      setState(() {
-        _aiResult = res;
-        if (!res.hasError) {
-          _selectedWasteType =
-              res.isWaste ? res.wasteType : 'No Waste / Clean';
-          _selectedSeverity = res.severity;
-        }
-        _privacyBlurred = !res.containsFacesOrPlates;
-        _isAnalyzing = false;
-      });
+      await _processPickedImageBytes(raw, alreadyCompressed: false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not access camera/photo: $e')),
+        SnackBar(
+          content: Text(
+            source == ImageSource.camera
+                ? 'Camera capture failed on this device. Try Gallery upload or allow camera permission.'
+                : 'Could not read selected photo: $e',
+          ),
+        ),
       );
     }
   }
 
   Future<Uint8List?> _captureCroppedViewport() async {
+    if (_transformCtrl.value.isIdentity()) {
+      return _rawPhotoBytes;
+    }
+    ui.Image? image;
     try {
       final boundary = _cropBoundaryKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) return _rawPhotoBytes;
-      final image = await boundary.toImage(pixelRatio: 1.5);
+      image = await boundary.toImage(pixelRatio: 1.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      image.dispose();
-      return byteData?.buffer.asUint8List() ?? _rawPhotoBytes;
+      final pngBytes = byteData?.buffer.asUint8List();
+      if (pngBytes == null) return _rawPhotoBytes;
+      return await AiVisionService.stripExifAndCompress(pngBytes);
     } catch (_) {
       return _rawPhotoBytes;
+    } finally {
+      image?.dispose();
     }
   }
 
@@ -308,12 +377,12 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
       );
       return;
     }
-    if (_aiResult != null && !_aiResult!.isWaste) {
+    if (_aiResult != null && !_aiResult!.hasError && !_aiResult!.isWaste) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: AppColors.warning,
           content: Text(
-              'No waste detected: ${_aiResult!.rejectionReason} Only street waste spots need to be reported.'),
+              'Not Detected by AI: ${_aiResult!.rejectionReason} Only street waste spots need to be reported.'),
         ),
       );
       return;
@@ -426,21 +495,27 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                 maxScale: 3.5,
                                 panEnabled: true,
                                 scaleEnabled: true,
-                                child: ImageFiltered(
-                                  imageFilter: _privacyBlurred &&
-                                          (_aiResult?.containsFacesOrPlates ??
-                                              false)
-                                      ? ui.ImageFilter.blur(
-                                          sigmaX: 5, sigmaY: 5)
-                                      : ui.ImageFilter.blur(
-                                          sigmaX: 0, sigmaY: 0),
-                                  child: Image.memory(
-                                    _rawPhotoBytes!,
-                                    fit: BoxFit.contain,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                  ),
-                                ),
+                                child: (_privacyBlurred &&
+                                        (_aiResult?.containsFacesOrPlates ??
+                                            false))
+                                    ? ImageFiltered(
+                                        imageFilter: ui.ImageFilter.blur(
+                                            sigmaX: 5, sigmaY: 5),
+                                        child: Image.memory(
+                                          _rawPhotoBytes!,
+                                          fit: BoxFit.contain,
+                                          cacheWidth: 800,
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                        ),
+                                      )
+                                    : Image.memory(
+                                        _rawPhotoBytes!,
+                                        fit: BoxFit.contain,
+                                        cacheWidth: 800,
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                      ),
                               ),
                             ),
 
@@ -465,63 +540,52 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                               Positioned(
                                 bottom: 12,
                                 left: 12,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: (_aiResult!.isWaste
-                                            ? AppColors.forest
-                                            : AppColors.warning)
-                                        .withValues(alpha: 0.92),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _aiResult!.isWaste
-                                            ? Icons.auto_awesome_rounded
-                                            : Icons.info_outline_rounded,
-                                        size: 14,
-                                        color: _aiResult!.isWaste
-                                            ? AppColors.emeraldMint
-                                            : Colors.white,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _aiResult!.hasError
-                                            ? 'Live AI Error'
-                                            : (_aiResult!.isWaste
-                                                ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
-                                                : 'No Waste / Clean Area'),
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
+                                right: 12,
+                                child: Align(
+                                  alignment: Alignment.bottomLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: (_aiResult!.isWaste &&
+                                                  !_aiResult!.hasError
+                                              ? AppColors.forest
+                                              : AppColors.warning)
+                                          .withValues(alpha: 0.92),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          _aiResult!.isWaste &&
+                                                  !_aiResult!.hasError
+                                              ? Icons.auto_awesome_rounded
+                                              : Icons.info_outline_rounded,
+                                          size: 14,
+                                          color: _aiResult!.isWaste &&
+                                                  !_aiResult!.hasError
+                                              ? AppColors.emeraldMint
+                                              : Colors.white,
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                            if (_exifStripped)
-                              Positioned(
-                                top: 10,
-                                left: 10,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 9, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.ink.withValues(alpha: 0.85),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Text(
-                                    'EXIF Stripped',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            _aiResult!.hasError
+                                                ? 'Not Detected by AI'
+                                                : (_aiResult!.isWaste
+                                                    ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
+                                                    : 'Not Detected by AI'),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -529,46 +593,82 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
 
                             Positioned(
                               top: 10,
+                              left: 10,
                               right: 10,
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  FilledButton.tonalIcon(
-                                    onPressed: _isAnalyzing
-                                        ? null
-                                        : () => _transformCtrl.value =
-                                            Matrix4.identity(),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.surface,
-                                      foregroundColor: AppColors.ink,
+                                  if (_exifStripped)
+                                    Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 6),
+                                          horizontal: 9, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.ink
+                                            .withValues(alpha: 0.85),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: const Text(
+                                        'EXIF Stripped',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox.shrink(),
+                                  Flexible(
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      alignment: WrapAlignment.end,
+                                      children: [
+                                        FilledButton.tonalIcon(
+                                          onPressed: _isAnalyzing
+                                              ? null
+                                              : () => _transformCtrl.value =
+                                                  Matrix4.identity(),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: AppColors.surface,
+                                            foregroundColor: AppColors.ink,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 9, vertical: 5),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          icon: const Icon(
+                                              Icons.crop_free_rounded,
+                                              size: 14),
+                                          label: const Text('Reset',
+                                              style: TextStyle(fontSize: 11)),
+                                        ),
+                                        FilledButton.tonalIcon(
+                                          onPressed: _isAnalyzing
+                                              ? null
+                                              : () => setState(() {
+                                                    _rawPhotoBytes = null;
+                                                    _croppedPhotoBytes = null;
+                                                    _aiResult = null;
+                                                    _exifStripped = false;
+                                                  }),
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: AppColors.surface,
+                                            foregroundColor: AppColors.ink,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 9, vertical: 5),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          icon: const Icon(
+                                              Icons.refresh_rounded,
+                                              size: 14),
+                                          label: const Text('Retake',
+                                              style: TextStyle(fontSize: 11)),
+                                        ),
+                                      ],
                                     ),
-                                    icon: const Icon(Icons.crop_free_rounded,
-                                        size: 15),
-                                    label: const Text('Reset Crop',
-                                        style: TextStyle(fontSize: 11)),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  FilledButton.tonalIcon(
-                                    onPressed: _isAnalyzing
-                                        ? null
-                                        : () => setState(() {
-                                              _rawPhotoBytes = null;
-                                              _croppedPhotoBytes = null;
-                                              _aiResult = null;
-                                              _exifStripped = false;
-                                            }),
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.surface,
-                                      foregroundColor: AppColors.ink,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 6),
-                                    ),
-                                    icon: const Icon(Icons.refresh_rounded,
-                                        size: 15),
-                                    label: const Text('Retake',
-                                        style: TextStyle(fontSize: 11)),
                                   ),
                                 ],
                               ),
@@ -663,18 +763,14 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _aiResult!.hasError
-                          ? AppColors.dangerSoft
-                          : (_aiResult!.isWaste
-                              ? AppColors.emeraldSoft
-                              : AppColors.warningSoft),
+                      color: _aiResult!.isWaste && !_aiResult!.hasError
+                          ? AppColors.emeraldSoft
+                          : AppColors.warningSoft,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _aiResult!.hasError
-                            ? AppColors.danger
-                            : (_aiResult!.isWaste
-                                ? AppColors.emerald
-                                : AppColors.warning),
+                        color: _aiResult!.isWaste && !_aiResult!.hasError
+                            ? AppColors.emerald
+                            : AppColors.warning,
                       ),
                     ),
                     child: Column(
@@ -682,18 +778,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       children: [
                         Text(
                           _aiResult!.hasError
-                              ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check backend AI key in Vercel & Redeploy)'
+                              ? '⚠️ Not Detected by AI — ${_aiResult!.errorMessage ?? "Unable to analyze photo right now."} Tap Re-Check or choose category manually.'
                               : (_aiResult!.isWaste
                                   ? 'Auto-Filled by AI: ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
-                                  : '⚠️ Rejected by AI: ${_aiResult!.rejectionReason}'),
+                                  : '⚠️ Not Detected by AI: ${_aiResult!.rejectionReason}'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _aiResult!.hasError
-                                ? AppColors.danger
-                                : (_aiResult!.isWaste
-                                    ? AppColors.forest
-                                    : AppColors.warning),
+                            color: _aiResult!.isWaste && !_aiResult!.hasError
+                                ? AppColors.forest
+                                : AppColors.warning,
                           ),
                         ),
                         if (_aiResult!.summary.isNotEmpty) ...[
@@ -735,6 +829,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final categoryField = DropdownButtonFormField<String>(
+                      key: ValueKey('waste-$_selectedWasteType'),
                       initialValue: _selectedWasteType,
                       isExpanded: true,
                       decoration: const InputDecoration(
@@ -752,6 +847,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       },
                     );
                     final severityField = DropdownButtonFormField<String>(
+                      key: ValueKey('sev-$_selectedSeverity'),
                       initialValue: _selectedSeverity,
                       isExpanded: true,
                       decoration: const InputDecoration(
@@ -956,10 +1052,16 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                       ),
                       Positioned(
                         bottom: 8,
+                        left: 8,
                         right: 8,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
+                        child: Align(
+                          alignment: Alignment.bottomRight,
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            alignment: WrapAlignment.end,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
                             ChoiceChip(
                               label: Text(_satelliteMode ? 'Satellite' : 'Street',
                                   style: const TextStyle(fontSize: 10.5)),
@@ -1061,7 +1163,8 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                               icon: const Icon(Icons.fullscreen_rounded,
                                   size: 18),
                             ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ],

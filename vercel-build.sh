@@ -10,4 +10,5 @@ flutter config --enable-web --no-analytics
 flutter pub get
 flutter build web --release --source-maps \
   --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
-  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}"
+  --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
+  --dart-define=ADMIN_PASSCODE="${ADMIN_PASSCODE:-}"

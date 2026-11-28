@@ -96,12 +96,14 @@ class SupabaseService {
     final client = _client;
     if (client == null) return null;
 
+    final contentType =
+        fileName.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
     try {
       await client.storage.from('waste-photos').uploadBinary(
             fileName,
             bytes,
-            fileOptions: const FileOptions(
-              contentType: 'image/png',
+            fileOptions: FileOptions(
+              contentType: contentType,
               upsert: true,
             ),
           );
@@ -522,6 +524,16 @@ class SupabaseService {
         meetingPoint: 'Bellandur Lake Service Rd North',
         driveTime: now.add(const Duration(days: 2, hours: 7)),
         rsvpCount: 22,
+        isDemo: true,
+      ),
+      MicroDrive(
+        id: 'drive-04',
+        reportId: 'demo-indiranagar-02',
+        title: 'Indiranagar 12th Main Completed Clean-Up',
+        wardName: 'Ward 80 Indiranagar',
+        meetingPoint: 'Indiranagar 12th Main Corner',
+        driveTime: now.subtract(const Duration(days: 1)),
+        rsvpCount: 18,
         isDemo: true,
       ),
     ];

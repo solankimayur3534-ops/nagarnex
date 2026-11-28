@@ -1,0 +1,8 @@
+date,day_label,new_clusters,merged_citizen_reports,verified_clearances,avg_resolution_hours,active_micro_drives,is_demo
+2026-11-22,Nov 22,8,12,5,14.8,1,true
+2026-11-23,Nov 23,11,18,8,13.5,2,true
+2026-11-24,Nov 24,9,15,7,12.9,1,true
+2026-11-25,Nov 25,14,24,11,11.4,2,true
+2026-11-26,Nov 26,12,21,10,10.8,3,true
+2026-11-27,Nov 27,15,28,12,10.2,3,true
+2026-11-28,Nov 28,14,36,13,9.6,4,true

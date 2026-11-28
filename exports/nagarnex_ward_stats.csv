@@ -1,0 +1,8 @@
+ward_name,civic_score,total_spots,cleared_spots,active_blackspots,recurring_spots,merged_reports,clearance_rate_pct,avg_clearance_hours,is_demo
+Ward 112 Malleswaram,52,2,1,1,0,6,50.0,14.0,true
+Ward 150 Bellandur,54,2,1,1,1,13,50.0,10.0,true
+Ward 151 Koramangala,52,2,1,1,2,13,50.0,13.0,true
+Ward 169 Jayanagar,96,2,2,0,0,6,100.0,8.5,true
+Ward 174 HSR Layout,52,2,1,1,1,8,50.0,13.0,true
+Ward 80 Indiranagar,95,2,2,0,1,9,100.0,11.5,true
+Ward 84 Whitefield,12,2,0,2,2,13,0.0,24.0,true

@@ -8,6 +8,23 @@ import 'rank_badge.dart';
 class PassportDrawer extends ConsumerWidget {
   const PassportDrawer({super.key});
 
+  Future<bool> _promptAdminUnlock(
+    BuildContext context,
+    WidgetRef ref, {
+    String? reason,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => _AdminUnlockDialog(
+        reason: reason,
+        onVerify: (password) => ref
+            .read(nagarNexProvider.notifier)
+            .verifyAndUnlockAdmin(password),
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _showEditProfileDialog(
     BuildContext context,
     WidgetRef ref,
@@ -203,6 +220,8 @@ class PassportDrawer extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
+                      key: ValueKey(
+                          'role_${appState.adminRole}_${appState.isAdminUnlocked}'),
                       initialValue: appState.adminRole,
                       isDense: true,
                       isExpanded: true,
@@ -226,10 +245,18 @@ class PassportDrawer extends ConsumerWidget {
                             child: Text('National Civic Admin (Policy)',
                                 overflow: TextOverflow.ellipsis)),
                       ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          ref.read(nagarNexProvider.notifier).setAdminRole(v);
+                      onChanged: (v) async {
+                        if (v == null || v == appState.adminRole) return;
+                        if (v != 'Citizen' && !appState.isAdminUnlocked) {
+                          final ok = await _promptAdminUnlock(
+                            context,
+                            ref,
+                            reason:
+                                'Enter the admin password to switch into $v.',
+                          );
+                          if (!ok) return;
                         }
+                        ref.read(nagarNexProvider.notifier).setAdminRole(v);
                       },
                     ),
                     const SizedBox(height: 8),
@@ -258,17 +285,87 @@ class PassportDrawer extends ConsumerWidget {
                             style: TextStyle(fontSize: 12)),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          context.go('/bi-dashboard');
+                        },
+                        icon: const Icon(Icons.bar_chart_rounded, size: 16),
+                        label: const Text('Open Power BI Dashboard →',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Admin Policy Controls (Supabase)',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkSecondary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'Admin Policy Controls (Supabase)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      if (appState.isAdminUnlocked) {
+                        ref.read(nagarNexProvider.notifier).lockAdmin();
+                      } else {
+                        _promptAdminUnlock(context, ref);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: appState.isAdminUnlocked
+                            ? AppColors.emeraldSoft
+                            : AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: appState.isAdminUnlocked
+                              ? AppColors.emerald
+                              : AppColors.warning,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            appState.isAdminUnlocked
+                                ? Icons.lock_open_rounded
+                                : Icons.lock_outline_rounded,
+                            size: 12,
+                            color: appState.isAdminUnlocked
+                                ? AppColors.forest
+                                : AppColors.warning,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            appState.isAdminUnlocked ? 'Lock' : 'Locked',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: appState.isAdminUnlocked
+                                  ? AppColors.forest
+                                  : AppColors.warning,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Material(
@@ -282,26 +379,78 @@ class PassportDrawer extends ConsumerWidget {
                   children: [
                     SwitchListTile(
                       dense: true,
+                      secondary: Icon(
+                        appState.isAdminUnlocked
+                            ? Icons.verified_user_outlined
+                            : Icons.lock_outline_rounded,
+                        size: 18,
+                        color: appState.isAdminUnlocked
+                            ? AppColors.forest
+                            : AppColors.inkMuted,
+                      ),
                       title: const Text('Enforce Camera Only',
                           style: TextStyle(
                               fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        appState.isAdminUnlocked
+                            ? 'Unlocked · Synced via Supabase'
+                            : 'Password required to modify',
+                        style: const TextStyle(fontSize: 10.5),
+                      ),
                       value: appState.enforceCameraOnly,
                       activeThumbColor: AppColors.forest,
-                      onChanged: (v) => ref
-                          .read(nagarNexProvider.notifier)
-                          .setAdminEnforcement(enforceCameraOnly: v),
+                      onChanged: (v) async {
+                        if (!appState.isAdminUnlocked) {
+                          final ok = await _promptAdminUnlock(
+                            context,
+                            ref,
+                            reason:
+                                'Enter the admin password to change Enforce Camera Only.',
+                          );
+                          if (!ok) return;
+                        }
+                        await ref
+                            .read(nagarNexProvider.notifier)
+                            .setAdminEnforcement(enforceCameraOnly: v);
+                      },
                     ),
                     const Divider(height: 1, color: AppColors.border),
                     SwitchListTile(
                       dense: true,
+                      secondary: Icon(
+                        appState.isAdminUnlocked
+                            ? Icons.verified_user_outlined
+                            : Icons.lock_outline_rounded,
+                        size: 18,
+                        color: appState.isAdminUnlocked
+                            ? AppColors.forest
+                            : AppColors.inkMuted,
+                      ),
                       title: const Text('Enforce Live GPS Only',
                           style: TextStyle(
                               fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      subtitle: Text(
+                        appState.isAdminUnlocked
+                            ? 'Unlocked · Synced via Supabase'
+                            : 'Password required to modify',
+                        style: const TextStyle(fontSize: 10.5),
+                      ),
                       value: appState.enforceGpsOnly,
                       activeThumbColor: AppColors.forest,
-                      onChanged: (v) => ref
-                          .read(nagarNexProvider.notifier)
-                          .setAdminEnforcement(enforceGpsOnly: v),
+                      onChanged: (v) async {
+                        if (!appState.isAdminUnlocked) {
+                          final ok = await _promptAdminUnlock(
+                            context,
+                            ref,
+                            reason:
+                                'Enter the admin password to change Enforce Live GPS Only.',
+                          );
+                          if (!ok) return;
+                        }
+                        await ref
+                            .read(nagarNexProvider.notifier)
+                            .setAdminEnforcement(enforceGpsOnly: v);
+                      },
                     ),
                   ],
                 ),
@@ -327,6 +476,115 @@ class PassportDrawer extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AdminUnlockDialog extends StatefulWidget {
+  final String? reason;
+  final bool Function(String password) onVerify;
+
+  const _AdminUnlockDialog({
+    required this.onVerify,
+    this.reason,
+  });
+
+  @override
+  State<_AdminUnlockDialog> createState() => _AdminUnlockDialogState();
+}
+
+class _AdminUnlockDialogState extends State<_AdminUnlockDialog> {
+  final TextEditingController _passCtrl = TextEditingController();
+  bool _obscure = true;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _passCtrl.dispose();
+    super.dispose();
+  }
+
+  void _attemptUnlock() {
+    if (widget.onVerify(_passCtrl.text)) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() {
+        _errorText = 'Incorrect admin password. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: const Row(
+        children: [
+          Icon(Icons.lock_outline_rounded, color: AppColors.forest, size: 22),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Admin Authentication Required',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.reason ??
+                  'Enter the admin password to unlock Governance roles and Supabase Policy Controls.',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.inkSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _passCtrl,
+              obscureText: _obscure,
+              autofocus: true,
+              onSubmitted: (_) => _attemptUnlock(),
+              decoration: InputDecoration(
+                labelText: 'Admin Password',
+                border: const OutlineInputBorder(),
+                errorText: _errorText,
+                prefixIcon: const Icon(Icons.key_rounded, size: 18),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: _attemptUnlock,
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.forest,
+            foregroundColor: Colors.white,
+          ),
+          icon: const Icon(Icons.lock_open_rounded, size: 16),
+          label: const Text('Unlock Admin'),
+        ),
+      ],
     );
   }
 }

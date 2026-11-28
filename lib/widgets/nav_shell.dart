@@ -241,6 +241,53 @@ class _NavShellState extends ConsumerState<NavShell> {
             const SizedBox(width: 8),
           ],
           IconButton(
+            onPressed: () => context.go('/bi-dashboard'),
+            tooltip: 'Power BI Analytics Dashboard',
+            padding: isMobile ? const EdgeInsets.all(4) : null,
+            constraints: isMobile ? const BoxConstraints(minWidth: 36, minHeight: 36) : null,
+            icon: Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 6 : 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: currentRoute == '/bi-dashboard'
+                    ? AppColors.forest
+                    : AppColors.warningSoft,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: currentRoute == '/bi-dashboard'
+                      ? AppColors.forest
+                      : AppColors.warning.withValues(alpha: 0.45),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.bar_chart_rounded,
+                    size: 15,
+                    color: currentRoute == '/bi-dashboard'
+                        ? Colors.white
+                        : AppColors.ink,
+                  ),
+                  if (!isMobile) ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      'BI',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: currentRoute == '/bi-dashboard'
+                            ? Colors.white
+                            : AppColors.ink,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: isMobile ? 0 : 4),
+          IconButton(
             onPressed: () => context.go('/intake'),
             tooltip: 'Report Waste',
             padding: isMobile ? const EdgeInsets.all(4) : null,
@@ -339,6 +386,7 @@ class _NavShellState extends ConsumerState<NavShell> {
           Image.asset(
             'assets/images/app_bg.jpg',
             fit: BoxFit.cover,
+            cacheWidth: 960,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
           DecoratedBox(

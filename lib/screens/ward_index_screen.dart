@@ -163,6 +163,20 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                         label: const Text(
                             'Export Ward CSV (Open Data CC-BY-4.0)'),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/bi-dashboard'),
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: AppColors.warningSoft,
+                          foregroundColor: AppColors.ink,
+                          side: BorderSide(
+                              color: AppColors.warning.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                        icon: const Icon(Icons.bar_chart_rounded, size: 16),
+                        label: const Text('Open Power BI Dashboard →'),
+                      ),
                     ],
                   ),
                 ],
@@ -446,20 +460,28 @@ class _WardIndexScreenState extends ConsumerState<WardIndexScreen> {
                                 border: Border.all(
                                     color: const Color(0xFFFECACA)),
                               ),
-                              child: Row(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Icon(Icons.warning_amber_rounded,
-                                      size: 18, color: AppColors.danger),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'BLACKSPOT RECURRENCE ALERT: ${w.recurringSpots} repeat dumping hotspot(s) detected within 150m in ${w.wardName}.',
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.danger,
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded,
+                                          size: 18, color: AppColors.danger),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          'BLACKSPOT RECURRENCE ALERT: ${w.recurringSpots} repeat dumping hotspot(s) detected within 150m in ${w.wardName}.',
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.danger,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                   FilledButton(
                                     onPressed: () => context.go('/drives'),

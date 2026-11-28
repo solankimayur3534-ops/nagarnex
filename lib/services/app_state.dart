@@ -13,6 +13,7 @@ import '../models/citizen_profile.dart';
 import '../models/collection_center.dart';
 import '../models/micro_drive.dart';
 import '../models/waste_report.dart';
+import 'ai_vision_service.dart';
 import 'supabase_service.dart';
 
 class NagarNexState {
@@ -31,6 +32,7 @@ class NagarNexState {
   final bool cameraPermissionGranted;
   final bool permissionGateRequired;
   final String adminRole;
+  final bool isAdminUnlocked;
   final Map<String, String> assignedHandlers;
   final bool isLoading;
 
@@ -50,6 +52,7 @@ class NagarNexState {
     this.cameraPermissionGranted = false,
     this.permissionGateRequired = false,
     this.adminRole = 'Citizen',
+    this.isAdminUnlocked = false,
     this.assignedHandlers = const {},
     this.isLoading = false,
   });
@@ -70,6 +73,7 @@ class NagarNexState {
     bool? cameraPermissionGranted,
     bool? permissionGateRequired,
     String? adminRole,
+    bool? isAdminUnlocked,
     Map<String, String>? assignedHandlers,
     bool? isLoading,
   }) {
@@ -91,6 +95,7 @@ class NagarNexState {
       permissionGateRequired:
           permissionGateRequired ?? this.permissionGateRequired,
       adminRole: adminRole ?? this.adminRole,
+      isAdminUnlocked: isAdminUnlocked ?? this.isAdminUnlocked,
       assignedHandlers: assignedHandlers ?? this.assignedHandlers,
       isLoading: isLoading ?? this.isLoading,
     );
@@ -267,7 +272,25 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     );
   }
 
+  bool verifyAndUnlockAdmin(String password) {
+    if (password.trim() == AppConstants.adminPasscode) {
+      state = state.copyWith(isAdminUnlocked: true);
+      return true;
+    }
+    return false;
+  }
+
+  void lockAdmin() {
+    state = state.copyWith(
+      isAdminUnlocked: false,
+      adminRole: 'Citizen',
+    );
+  }
+
   void setAdminRole(String role) {
+    if (role != 'Citizen' && !state.isAdminUnlocked) {
+      return;
+    }
     state = state.copyWith(adminRole: role);
   }
 
@@ -281,6 +304,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     bool? enforceCameraOnly,
     bool? enforceGpsOnly,
   }) async {
+    if (!state.isAdminUnlocked) return;
     final cam = enforceCameraOnly ?? state.enforceCameraOnly;
     final gps = enforceGpsOnly ?? state.enforceGpsOnly;
     state = state.copyWith(
@@ -358,6 +382,18 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     await SupabaseService.upsertCitizenProfile(updated);
   }
 
+  static Map<String, Uint8List> _putBoundedPhoto(
+    Map<String, Uint8List> existing,
+    String key,
+    Uint8List bytes,
+  ) {
+    final next = Map<String, Uint8List>.from(existing)..[key] = bytes;
+    while (next.length > 20) {
+      next.remove(next.keys.first);
+    }
+    return next;
+  }
+
   /// Submits a new AI-classified waste report. Automatically merges into an
   /// existing blackspot cluster if within 150m and matching [wasteType].
   /// Returns `(merged: bool, report: WasteReport)`.
@@ -405,9 +441,12 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     }
 
     final id = 'rep-${DateTime.now().millisecondsSinceEpoch}';
+    final ext = AiVisionService.detectMimeType(photoBytes) == 'image/png'
+        ? 'png'
+        : 'jpg';
     final uploadedUrl = await SupabaseService.uploadPhotoBytes(
       bytes: photoBytes,
-      fileName: 'before_$id.png',
+      fileName: 'before_$id.$ext',
     );
     final photoKey = uploadedUrl ?? 'local://before/$id';
 
@@ -430,8 +469,7 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       createdAt: DateTime.now(),
     );
 
-    final nextCache = Map<String, Uint8List>.from(state.localPhotoCache)
-      ..[photoKey] = photoBytes;
+    final nextCache = _putBoundedPhoto(state.localPhotoCache, photoKey, photoBytes);
 
     final nextTracked = {...state.myReportIds, newReport.id};
     state = state.copyWith(
@@ -460,9 +498,12 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
     required Uint8List afterPhotoBytes,
     required bool markClearedNow,
   }) async {
+    final ext = AiVisionService.detectMimeType(afterPhotoBytes) == 'image/png'
+        ? 'png'
+        : 'jpg';
     final uploadedUrl = await SupabaseService.uploadPhotoBytes(
       bytes: afterPhotoBytes,
-      fileName: 'after_${report.id}.png',
+      fileName: 'after_${report.id}.$ext',
     );
     final afterKey = uploadedUrl ?? 'local://after/${report.id}';
     final nextVotes = report.verifyVotes + 1;
@@ -478,8 +519,8 @@ class NagarNexNotifier extends Notifier<NagarNexState> {
       resolvedAt: isCleared ? DateTime.now() : null,
     );
 
-    final nextCache = Map<String, Uint8List>.from(state.localPhotoCache)
-      ..[afterKey] = afterPhotoBytes;
+    final nextCache =
+        _putBoundedPhoto(state.localPhotoCache, afterKey, afterPhotoBytes);
 
     final isTracked = state.myReportIds.contains(report.id);
     state = state.copyWith(

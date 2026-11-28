@@ -1,0 +1,5 @@
+id,report_id,title,ward_name,meeting_point,status,rsvp_count,capacity,is_demo
+drive-01,demo-koramangala-03,80ft Road Bus Stop Morning Blitz,Ward 151 Koramangala,Koramangala 80ft Rd Bus Shelter,Upcoming,14,30,true
+drive-02,demo-whitefield-04,ITPL Gate 2 E-Waste & Litter Sort,Ward 84 Whitefield,ITPL Main Gate 2 Footpath,Upcoming,9,30,true
+drive-03,,Bellandur Lake Buffer Edge Sweep,Ward 150 Bellandur,Bellandur Lake Service Rd North,Upcoming,22,30,true
+drive-04,demo-indiranagar-02,Indiranagar 12th Main Completed Clean-Up,Ward 80 Indiranagar,Indiranagar 12th Main Corner,Completed,18,30,true

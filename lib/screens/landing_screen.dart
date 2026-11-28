@@ -74,6 +74,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
           Image.asset(
             'assets/images/hero_bg.jpg',
             fit: BoxFit.cover,
+            cacheWidth: 960,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),
           ),
           // Deep 3D forest-emerald atmospheric scrim for razor-sharp readability

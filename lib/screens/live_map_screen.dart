@@ -32,6 +32,12 @@ class _LiveMapScreenState extends ConsumerState<LiveMapScreen> {
   String? _selectedReportId;
   String? _selectedCenterId;
 
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
   Future<void> _centerOnMyLocation() async {
     setState(() => _locating = true);
     final res = await ref
@@ -1027,7 +1033,6 @@ class _WardHealthStrip extends StatelessWidget {
           final healthy = w.civicScore >= 70;
           return InkWell(
             onTap: () => onSelectWard(w),
-            onDoubleTap: onOpenWardIndex,
             borderRadius: BorderRadius.circular(14),
             child: Container(
               padding: const EdgeInsets.all(14),
@@ -1104,8 +1109,14 @@ class _WardHealthStrip extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  InkWell(
-                    onTap: onOpenWardIndex,
+                  TextButton(
+                    onPressed: onOpenWardIndex,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 2, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                     child: Text(
                       '${w.clearedSpots} Cleared · Open Ward Ledger →',
                       style: const TextStyle(
@@ -1170,16 +1181,17 @@ class _MobileSpotDetailCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  report.placeName,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.ink,
-                  ),
+              Text(
+                report.placeName,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
                 ),
               ),
               Container(
@@ -1198,6 +1210,23 @@ class _MobileSpotDetailCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (report.isDemo)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningSoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    'Demo Data',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning,
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 4),

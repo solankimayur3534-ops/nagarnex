@@ -4,12 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:nagarnex/core/city_locator.dart';
+import 'package:nagarnex/core/constants.dart';
 import 'package:nagarnex/core/geo_utils.dart';
 import 'package:nagarnex/main.dart';
 import 'package:nagarnex/models/waste_report.dart';
+import 'package:nagarnex/services/ai_vision_service.dart';
 import 'package:nagarnex/services/app_state.dart';
 import 'package:nagarnex/services/supabase_service.dart';
 import 'package:nagarnex/widgets/judge_tour.dart';
+import 'package:nagarnex/widgets/passport_drawer.dart';
 import 'package:nagarnex/widgets/rank_badge.dart';
 
 void main() {
@@ -230,5 +233,250 @@ void main() {
     final rajkot = await CityLocator.resolveLocationDetails(
         const LatLng(22.3039, 70.8022));
     expect(rajkot.city, 'Rajkot');
+  });
+
+  test('AiVisionService sanitizes internal provider names and detects MIME types', () {
+    expect(
+      AiVisionService.sanitizeUserMessage('Gemini AI Studio API key invalid'),
+      'Could not analyze image right now.',
+    );
+    expect(
+      AiVisionService.sanitizeUserMessage('NVIDIA NIM error (429)'),
+      'Could not analyze image right now.',
+    );
+    expect(
+      AiVisionService.sanitizeUserMessage('Clean street road with no garbage.'),
+      'Clean street road with no garbage.',
+    );
+
+    expect(
+      AiVisionService.detectMimeType(Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0])),
+      'image/jpeg',
+    );
+    expect(
+      AiVisionService.detectMimeType(Uint8List.fromList([0x89, 0x50, 0x4E, 0x47])),
+      'image/png',
+    );
+    expect(
+      AiVisionService.detectMimeType(Uint8List.fromList(
+        [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50],
+      )),
+      'image/webp',
+    );
+  });
+
+  testWidgets('Module 01 LiveMap and all connected modules work on 375x812 mobile',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ProviderScope(child: NagarNexApp()));
+    await tester.pumpAndSettle();
+
+    // Go to Module 01 (Live Map)
+    if (find.text('Launch App').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Launch App'));
+      await tester.pumpAndSettle();
+    } else {
+      await tester.tap(find.text('Live Map'));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Snap & Classify Waste'), findsOneWidget);
+
+    // 1. Test waste category filter pill inside Module 01
+    final plasticPill = find.text('Plastic & Mixed');
+    await tester.ensureVisible(plasticPill);
+    await tester.tap(plasticPill);
+    await tester.pumpAndSettle();
+
+    final allPill = find.textContaining('All Spots');
+    await tester.ensureVisible(allPill);
+    await tester.tap(allPill);
+    await tester.pumpAndSettle();
+
+    // 2. Test Ward Health card connection -> Module 02 (Ward Index)
+    final wardLedgerBtn = find.textContaining('Open Ward Ledger').first;
+    await tester.ensureVisible(wardLedgerBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(wardLedgerBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Bengaluru Ward Waste Index & Clearance Ledger'),
+        findsOneWidget);
+
+    // Return to Module 01 (Live Map)
+    await tester.tap(find.text('Live Map'));
+    await tester.pumpAndSettle();
+
+    // 3. Test 15s Citizen Intake connection -> /intake
+    final snapBtn = find.text('Snap & Classify Waste');
+    await tester.ensureVisible(snapBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(snapBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('15-Second AI Waste Intake'), findsOneWidget);
+
+    // Return to Module 01 (Live Map)
+    await tester.tap(find.text('Live Map'));
+    await tester.pumpAndSettle();
+
+    // 4. Select an active blackspot in Module 01, then open VerifyProofModal
+    final activeSpotCard = find.text('Koramangala 80ft Road Bus Stop').last;
+    await tester.ensureVisible(activeSpotCard);
+    await tester.pumpAndSettle();
+    await tester.tap(activeSpotCard);
+    await tester.pumpAndSettle();
+
+    final verifyBtn = find.text('Verify Fix →').first;
+    await tester.ensureVisible(verifyBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(verifyBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Verify Street Waste Clearance'), findsOneWidget);
+
+    // Close modal cleanly
+    final closeVerifyBtn = find.text('Still Uncleared ×');
+    await tester.ensureVisible(closeVerifyBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(closeVerifyBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Verify Street Waste Clearance'), findsNothing);
+
+    // 5. Test Micro-Drives connection from Module 01 -> Module 03 (/drives)
+    final startDriveBtn = find.byTooltip('Start Clean-Up Drive').first;
+    await tester.ensureVisible(startDriveBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(startDriveBtn);
+    await tester.pumpAndSettle();
+    expect(find.text('Community Clean-Up Micro-Drives'), findsOneWidget);
+
+    // Verify interactive Completed filter tab on Micro-Drives
+    await tester.tap(find.textContaining('Completed'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Indiranagar 12th Main Completed Clean-Up'),
+        findsOneWidget);
+
+    // Return to Module 01 (Live Map) and test Rectified Board connection -> Module 04 (/board)
+    await tester.tap(find.text('Live Map'));
+    await tester.pumpAndSettle();
+    final boardLink = find.text('View Board →');
+    await tester.ensureVisible(boardLink);
+    await tester.pumpAndSettle();
+    await tester.tap(boardLink);
+    await tester.pumpAndSettle();
+    expect(find.text('Verified Street Solutions (Bangalore)'), findsOneWidget);
+  });
+
+  test('Admin Policy Controls require password in NagarNexNotifier', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final notifier = container.read(nagarNexProvider.notifier);
+    expect(container.read(nagarNexProvider).isAdminUnlocked, false);
+
+    // Mutations must be ignored while locked
+    notifier.setAdminRole('National Civic Admin');
+    await notifier.setAdminEnforcement(
+      enforceCameraOnly: true,
+      enforceGpsOnly: true,
+    );
+    expect(container.read(nagarNexProvider).adminRole, 'Citizen');
+    expect(container.read(nagarNexProvider).enforceCameraOnly, false);
+    expect(container.read(nagarNexProvider).enforceGpsOnly, false);
+
+    // Wrong password rejected
+    expect(notifier.verifyAndUnlockAdmin('wrong-password'), false);
+    expect(container.read(nagarNexProvider).isAdminUnlocked, false);
+
+    // Valid password unlocks admin role + policy controls
+    expect(notifier.verifyAndUnlockAdmin(AppConstants.adminPasscode), true);
+    expect(container.read(nagarNexProvider).isAdminUnlocked, true);
+
+    notifier.setAdminRole('National Civic Admin');
+    await notifier.setAdminEnforcement(enforceCameraOnly: true);
+    expect(container.read(nagarNexProvider).adminRole, 'National Civic Admin');
+    expect(container.read(nagarNexProvider).enforceCameraOnly, true);
+
+    // Re-locking resets role safely to Citizen
+    notifier.lockAdmin();
+    expect(container.read(nagarNexProvider).isAdminUnlocked, false);
+    expect(container.read(nagarNexProvider).adminRole, 'Citizen');
+  });
+
+  testWidgets('PassportDrawer prompts for admin password before policy toggle',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: PassportDrawer(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Locked'), findsOneWidget);
+    expect(find.text('Password required to modify'), findsNWidgets(2));
+
+    // Tapping Enforce Camera Only while locked opens password dialog
+    final camToggle = find.text('Enforce Camera Only');
+    await tester.ensureVisible(camToggle);
+    await tester.tap(camToggle);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Admin Authentication Required'), findsOneWidget);
+
+    // Wrong password displays error and keeps controls locked
+    await tester.enterText(find.byType(TextField), 'bad-pass');
+    await tester.tap(find.text('Unlock Admin'));
+    await tester.pumpAndSettle();
+    expect(find.text('Incorrect admin password. Please try again.'),
+        findsOneWidget);
+
+    // Correct password unlocks and applies Enforce Camera Only
+    await tester.enterText(find.byType(TextField), AppConstants.adminPasscode);
+    await tester.tap(find.text('Unlock Admin'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Admin Authentication Required'), findsNothing);
+    expect(find.text('Lock'), findsOneWidget);
+    expect(find.text('Unlocked · Synced via Supabase'), findsNWidgets(2));
+  });
+
+  testWidgets('BI Dashboard renders on 375x812 mobile with slicers and demo notice',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const ProviderScope(child: NagarNexApp()));
+    await tester.pumpAndSettle();
+
+    // Navigate into app, then open Power BI Dashboard via AppBar action
+    if (find.text('Launch App').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Launch App'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.byTooltip('Power BI Analytics Dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bengaluru Waste Accountability BI Dashboard'),
+        findsOneWidget);
+    expect(find.textContaining('Demo / Dummy Dataset Notice'), findsOneWidget);
+
+    // Interactive category slicer
+    final plasticChip = find.widgetWithText(ChoiceChip, 'Plastic');
+    await tester.ensureVisible(plasticChip);
+    await tester.tap(plasticChip);
+    await tester.pumpAndSettle();
+
+    final resetBtn = find.text('Reset Slicers');
+    await tester.ensureVisible(resetBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(resetBtn);
+    await tester.pumpAndSettle();
   });
 }

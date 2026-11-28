@@ -4,8 +4,17 @@ import 'package:intl/intl.dart';
 import '../core/constants.dart';
 import '../services/app_state.dart';
 
-class DrivesScreen extends ConsumerWidget {
+enum _DriveFilter { upcoming, weekend, completed }
+
+class DrivesScreen extends ConsumerStatefulWidget {
   const DrivesScreen({super.key});
+
+  @override
+  ConsumerState<DrivesScreen> createState() => _DrivesScreenState();
+}
+
+class _DrivesScreenState extends ConsumerState<DrivesScreen> {
+  _DriveFilter _filter = _DriveFilter.upcoming;
 
   Future<void> _showCreateDriveDialog(
       BuildContext context, WidgetRef ref) async {
@@ -96,9 +105,27 @@ class DrivesScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(nagarNexProvider);
-    final drives = state.drives;
+    final allDrives = state.drives;
+    final now = DateTime.now();
+    final upcomingDrives =
+        allDrives.where((d) => !d.driveTime.isBefore(now)).toList();
+    final weekendDrives = upcomingDrives
+        .where((d) =>
+            d.driveTime.weekday == DateTime.saturday ||
+            d.driveTime.weekday == DateTime.sunday ||
+            d.driveTime.difference(now).inDays <= 2)
+        .toList();
+    final completedDrives =
+        allDrives.where((d) => d.driveTime.isBefore(now)).toList();
+
+    final drives = switch (_filter) {
+      _DriveFilter.upcoming => upcomingDrives,
+      _DriveFilter.weekend => weekendDrives,
+      _DriveFilter.completed => completedDrives,
+    };
+
     final profile = state.profile;
     final dateFmt = DateFormat('EEE • hh:mm a');
     final isWide = MediaQuery.sizeOf(context).width >= 960;
@@ -114,10 +141,25 @@ class DrivesScreen extends ConsumerWidget {
           children: [
             Wrap(
               spacing: 8,
+              runSpacing: 6,
               children: [
-                _FilterPill(label: 'Upcoming (${drives.length})', active: true),
-                const _FilterPill(label: 'This Weekend', active: false),
-                const _FilterPill(label: 'Completed', active: false),
+                _FilterPill(
+                  label: 'Upcoming (${upcomingDrives.length})',
+                  active: _filter == _DriveFilter.upcoming,
+                  onTap: () =>
+                      setState(() => _filter = _DriveFilter.upcoming),
+                ),
+                _FilterPill(
+                  label: 'This Weekend (${weekendDrives.length})',
+                  active: _filter == _DriveFilter.weekend,
+                  onTap: () => setState(() => _filter = _DriveFilter.weekend),
+                ),
+                _FilterPill(
+                  label: 'Completed (${completedDrives.length})',
+                  active: _filter == _DriveFilter.completed,
+                  onTap: () =>
+                      setState(() => _filter = _DriveFilter.completed),
+                ),
               ],
             ),
             FilledButton.icon(
@@ -137,6 +179,7 @@ class DrivesScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         ...drives.map((drive) {
+          final isDone = drive.driveTime.isBefore(now);
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: Container(
@@ -157,12 +200,16 @@ class DrivesScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppColors.emeraldMint.withValues(alpha: 0.45),
+                          color: isDone
+                              ? AppColors.emeraldSoft
+                              : AppColors.emeraldMint.withValues(alpha: 0.45),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
-                          '✓ Verified Community Drive',
-                          style: TextStyle(
+                        child: Text(
+                          isDone
+                              ? '✓ Completed Drive'
+                              : '✓ Verified Community Drive',
+                          style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                             color: AppColors.forest,
@@ -185,6 +232,23 @@ class DrivesScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      if (drive.isDemo)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.warningSoft,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Demo Data',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -220,7 +284,9 @@ class DrivesScreen extends ConsumerWidget {
                         _MetaCol('Schedule', dateFmt.format(drive.driveTime)),
                         _MetaCol('Meeting Point', drive.meetingPoint),
                         _MetaCol(
-                            'Commitment', '${drive.rsvpCount} neighbors pledged'),
+                          'Capacity & RSVPs',
+                          '${drive.rsvpCount} / 30 spots',
+                        ),
                       ],
                     ),
                   ),
@@ -559,23 +625,32 @@ class DrivesScreen extends ConsumerWidget {
 class _FilterPill extends StatelessWidget {
   final String label;
   final bool active;
-  const _FilterPill({required this.label, required this.active});
+  final VoidCallback onTap;
+  const _FilterPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: active ? AppColors.forest : AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: active ? AppColors.forest : AppColors.border),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: active ? Colors.white : AppColors.inkSecondary,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? AppColors.forest : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: active ? AppColors.forest : AppColors.border),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : AppColors.inkSecondary,
+          ),
         ),
       ),
     );

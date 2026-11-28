@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../core/constants.dart';
+import '../core/geo_utils.dart';
 import '../services/app_state.dart';
 
 class RoadsideBoardScreen extends ConsumerWidget {
@@ -109,7 +110,7 @@ class RoadsideBoardScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              '${r.reportCount} Duplicate Reports Merged • Cleared in ${r.clearanceDurationLabel} • Confirmed by ${r.verifyVotes} local citizens',
+                              '${r.reportCount} Duplicate Reports Merged • Cleared in ${r.clearanceDurationLabel} • ${GeoUtils.formatReportedTimestamp(r.resolvedAt ?? r.createdAt)} • ${r.verifyVotes} votes',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 color: AppColors.inkSecondary,
@@ -118,6 +119,13 @@ class RoadsideBoardScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -134,6 +142,23 @@ class RoadsideBoardScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      if (r.isDemo)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.warningSoft,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Demo Data',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -477,7 +502,7 @@ class _BoardProofBox extends StatelessWidget {
 
   Widget? _buildPhoto() {
     if (localBytes != null) {
-      return Image.memory(localBytes!, fit: BoxFit.cover);
+      return Image.memory(localBytes!, fit: BoxFit.cover, cacheWidth: 600);
     }
     if (photoUrl != null) {
       final demoAsset = _demoAssetMap[photoUrl!];
@@ -485,6 +510,7 @@ class _BoardProofBox extends StatelessWidget {
         return Image.asset(
           demoAsset,
           fit: BoxFit.cover,
+          cacheWidth: 600,
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         );
       }
@@ -492,6 +518,7 @@ class _BoardProofBox extends StatelessWidget {
         return Image.network(
           photoUrl!,
           fit: BoxFit.cover,
+          cacheWidth: 600,
           errorBuilder: (_, _, _) => const SizedBox.shrink(),
         );
       }
