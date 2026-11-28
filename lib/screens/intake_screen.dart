@@ -311,9 +311,9 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
     if (_aiResult != null && !_aiResult!.isWaste) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppColors.danger,
+          backgroundColor: AppColors.warning,
           content: Text(
-              'Not a waste photo: ${_aiResult!.rejectionReason} Please upload an actual street waste photo.'),
+              'No waste detected: ${_aiResult!.rejectionReason} Only street waste spots need to be reported.'),
         ),
       );
       return;
@@ -471,7 +471,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                   decoration: BoxDecoration(
                                     color: (_aiResult!.isWaste
                                             ? AppColors.forest
-                                            : AppColors.danger)
+                                            : AppColors.warning)
                                         .withValues(alpha: 0.92),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
@@ -481,7 +481,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                       Icon(
                                         _aiResult!.isWaste
                                             ? Icons.auto_awesome_rounded
-                                            : Icons.warning_amber_rounded,
+                                            : Icons.info_outline_rounded,
                                         size: 14,
                                         color: _aiResult!.isWaste
                                             ? AppColors.emeraldMint
@@ -493,7 +493,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                                             ? 'Live AI Error'
                                             : (_aiResult!.isWaste
                                                 ? 'AI Marked: ${_aiResult!.wasteType} · ${_aiResult!.severity} (${(_aiResult!.confidence * 100).round()}%)'
-                                                : 'Not Street Waste'),
+                                                : 'No Waste / Clean Area'),
                                         style: const TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w700,
@@ -663,14 +663,18 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _aiResult!.isWaste
-                          ? AppColors.emeraldSoft
-                          : AppColors.dangerSoft,
+                      color: _aiResult!.hasError
+                          ? AppColors.dangerSoft
+                          : (_aiResult!.isWaste
+                              ? AppColors.emeraldSoft
+                              : AppColors.warningSoft),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _aiResult!.isWaste
-                            ? AppColors.emerald
-                            : AppColors.danger,
+                        color: _aiResult!.hasError
+                            ? AppColors.danger
+                            : (_aiResult!.isWaste
+                                ? AppColors.emerald
+                                : AppColors.warning),
                       ),
                     ),
                     child: Column(
@@ -681,13 +685,15 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
                               ? '⚠️ Live AI Error: ${_aiResult!.errorMessage} (Check NVIDIA_NIM_API_KEY / GEMINI_API_KEY in Vercel & Redeploy)'
                               : (_aiResult!.isWaste
                                   ? 'AI (${_aiResult!.providerLabel}): ${_aiResult!.wasteType} · ${_aiResult!.severity} Severity (${(_aiResult!.confidence * 100).round()}% confidence)'
-                                  : '⚠️ Rejected by ${_aiResult!.providerLabel}: Not a street waste photo — ${_aiResult!.rejectionReason}'),
+                                  : '⚠️ Area Looks Clean / Not Waste (${_aiResult!.providerLabel}): ${_aiResult!.rejectionReason}'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _aiResult!.isWaste && !_aiResult!.hasError
-                                ? AppColors.forest
-                                : AppColors.danger,
+                            color: _aiResult!.hasError
+                                ? AppColors.danger
+                                : (_aiResult!.isWaste
+                                    ? AppColors.forest
+                                    : AppColors.warning),
                           ),
                         ),
                         if (_aiResult!.summary.isNotEmpty) ...[
